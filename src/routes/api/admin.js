@@ -1,4 +1,3 @@
-// src/routes/api/admin.js
 const express = require('express');
 const router = express.Router();
 const VideoController = require('../../controllers/videoController');
@@ -20,9 +19,16 @@ router.use(adminAuth);
 // Dashboard
 router.get('/dashboard/stats', AdminController.getDashboardStats);
 
+// Enhanced Analytics Routes
+router.get('/analytics/overview', AdminController.getAnalyticsOverview);
+router.get('/analytics/detailed', AdminController.getDetailedAnalytics);
+router.get('/analytics/videos', AdminController.getVideoAnalytics);
+router.get('/analytics/users', AdminController.getUserAnalytics);
+
 // Video management
 router.get('/videos', VideoController.getAdminList);
 router.get('/videos/:id', VideoController.getVideo);
+router.get('/videos/:id/stats', VideoController.getVideoStats);
 router.post('/videos/upload', upload.single('video'), upload.handleUploadError, VideoController.upload);
 router.put('/videos/:id', VideoController.update);
 router.delete('/videos/:id', VideoController.delete);
@@ -34,19 +40,8 @@ router.post('/users', AdminController.createUser);
 router.put('/users/:id', AdminController.updateUser);
 router.delete('/users/:id', AdminController.deleteUser);
 
-// Analytics
-router.get('/analytics/overview', AdminController.getAnalyticsOverview);
-router.get('/analytics/videos', AdminController.getVideoAnalytics);
-router.get('/analytics/users', AdminController.getUserAnalytics);
-
 // Settings
 router.get('/settings', AdminController.getSettings);
 router.put('/settings', AdminController.updateSettings);
-
-router.post('/videos/upload', 
-    upload.single('video'), 
-    upload.handleUploadError, 
-    VideoController.upload
-);
 
 module.exports = router;

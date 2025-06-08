@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= video.title %> - VideoApp</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+        
+        .embed-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .embed-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .embed-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            padding: 20px;
+            color: white;
+        }
+        
+        .embed-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .embed-meta {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .embed-branding {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(254, 44, 85, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .embed-branding:hover {
+            background: rgba(254, 44, 85, 1);
+        }
+    </style>
+</head>
+<body>
+    <div class="embed-container">
+        <video 
+            class="embed-video"
+            src="<%= video.video_url %>"
+            controls
+            autoplay
+            muted
+            playsinline
+            poster="<%= video.thumbnail || '' %>"
+        ></video>
+        
+        <div class="embed-overlay">
+            <div class="embed-title"><%= video.title %></div>
+            <div class="embed-meta">
+                <%= video.views_count || 0 %> views
+                <% if (video.username) { %> • @<%= video.username %><% } %>
+            </div>
+        </div>
+        
+        <a href="/video/<%= video.slug %>" target="_blank" class="embed-branding">
+            VideoApp
+        </a>
+    </div>
+    
+    <script>
+        // Track embed views
+        fetch('/api/videos/<%= video.id %>/view', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                watchDuration: 0,
+                source: 'embed'
+            })
+        }).catch(err => console.log('Failed to track embed view'));
+        
+        // Auto-hide overlay after 3 seconds
+        setTimeout(() => {
+            const overlay = document.querySelector('.embed-overlay');
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.5s';
+        }, 3000);
+        
+        // Show overlay on hover
+        document.addEventListener('mouseover', () => {
+            const overlay = document.querySelector('.embed-overlay');
+            overlay.style.opacity = '1';
+        });
+        
+        document.addEventListener('mouseout', () => {
+            const overlay = document.querySelector('.embed-overlay');
+            overlay.style.opacity = '0';
+        });
+    </script>
+</body>
+</html>

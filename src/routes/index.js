@@ -1,15 +1,20 @@
-// src/routes/index.js
 const express = require('express');
 const router = express.Router();
 
 // Import route modules
-const webRoutes = require('./web');
 const apiRoutes = require('./api');
+const webRoutes = require('./web');
 
-// API routes HARUS SEBELUM web routes
+// Debug middleware
+router.use((req, res, next) => {
+    console.log(`[ROUTER] ${req.method} ${req.originalUrl}`);
+    next();
+});
+
+// API routes MUST come FIRST and be more specific
 router.use('/api', apiRoutes);
 
-// Web routes (for rendering pages)
+// Web routes come after API routes
 router.use('/', webRoutes);
 
 module.exports = router;

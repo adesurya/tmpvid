@@ -1,20 +1,43 @@
-// src/controllers/adminController.js
 const User = require('../models/User');
 const Video = require('../models/Video');
 const Category = require('../models/Category');
 const Series = require('../models/Series');
-const storageService = require('../services/storageService');
+const { query, queryOne } = require('../config/database');
 
 class AdminController {
     static async getDashboardStats(req, res) {
         try {
             // Get basic stats with fallback values
-            const totalVideos = await Video.getCount?.() || 0;
-            const totalUsers = await User.getCount?.() || 0;
-            const totalCategories = await Category.getCount?.() || 0;
-            const totalSeries = await Series.getCount?.() || 0;
+            let totalVideos = 0;
+            let totalUsers = 0;
+            let totalCategories = 0;
+            let totalSeries = 0;
+
+            try {
+                totalVideos = await Video.getCount();
+            } catch (error) {
+                console.log('Failed to get video count:', error);
+            }
+
+            try {
+                totalUsers = await User.getCount();
+            } catch (error) {
+                console.log('Failed to get user count:', error);
+            }
+
+            try {
+                totalCategories = await Category.getCount();
+            } catch (error) {
+                console.log('Failed to get category count:', error);
+            }
+
+            try {
+                totalSeries = await Series.getCount();
+            } catch (error) {
+                console.log('Failed to get series count:', error);
+            }
             
-            // Mock data for now
+            // Mock data for additional stats
             const totalViews = 125000;
             const storageUsed = 2.5 * 1024 * 1024 * 1024; // 2.5GB
             const activeUsers = 1250;
@@ -40,11 +63,83 @@ class AdminController {
         }
     }
 
+    static async getDetailedAnalytics(req, res) {
+        try {
+            const { timeframe = '30' } = req.query;
+            const days = parseInt(timeframe);
+            
+            console.log(`Getting detailed analytics for ${days} days`);
+            
+            // Get overview analytics from Video model
+            const analytics = await Video.getAnalyticsOverview(days);
+            
+            // Get total stats
+            const totalStatsQuery = `
+                SELECT 
+                    COUNT(DISTINCT v.id) as total_videos,
+                    COALESCE(SUM(v.views_count), 0) as total_views,
+                    COALESCE(SUM(v.likes_count), 0) as total_likes,
+                    COALESCE(SUM(v.shares_count), 0) as total_shares,
+                    COUNT(DISTINCT u.id) as total_users
+                FROM videos v
+                LEFT JOIN users u ON v.user_id = u.id
+                WHERE v.status = 'published'
+            `;
+            
+            let totalStatsResult = [];
+            try {
+                totalStatsResult = await query(totalStatsQuery);
+            } catch (error) {
+                console.log('Total stats query failed:', error);
+            }
+            
+            // Get growth metrics
+            const growthQuery = `
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as new_videos
+                FROM videos 
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                AND status = 'published'
+                GROUP BY DATE(created_at)
+                ORDER BY date DESC
+            `;
+            
+            let growthMetrics = [];
+            try {
+                growthMetrics = await query(growthQuery, [days]);
+            } catch (error) {
+                console.log('Growth metrics query failed:', error);
+            }
+            
+            res.json({
+                success: true,
+                data: {
+                    ...analytics,
+                    totalStats: totalStatsResult[0] || {
+                        total_videos: 0,
+                        total_views: 0,
+                        total_likes: 0,
+                        total_shares: 0,
+                        total_users: 0
+                    },
+                    growthMetrics: growthMetrics || []
+                }
+            });
+        } catch (error) {
+            console.error('Get detailed analytics error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get analytics: ' + error.message
+            });
+        }
+    }
+
     static async getUsers(req, res) {
         try {
             const { page = 1, limit = 20, search = '' } = req.query;
             
-            // Mock implementation - replace with actual user query
+            // Mock implementation
             const users = [];
             const pagination = {
                 page: parseInt(page),
@@ -81,7 +176,6 @@ class AdminController {
         try {
             const { username, email, password, role } = req.body;
             
-            // Validate input
             if (!username || !email || !password) {
                 return res.status(400).json({
                     success: false,
@@ -286,7 +380,6 @@ class AdminController {
 
     static async updateSettings(req, res) {
         try {
-            // Mock settings update
             res.json({
                 success: true,
                 message: 'Settings updated successfully'

@@ -1,9 +1,366 @@
 <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <h2 style="margin-bottom: 30px;">Analytics Dashboard</h2>
-    
-    <div style="text-align: center; padding: 50px; color: #7f8c8d;">
-        <i class="fas fa-chart-bar" style="font-size: 64px; margin-bottom: 20px; color: #bdc3c7;"></i>
-        <h3>Analytics Coming Soon</h3>
-        <p>Detailed analytics and reporting will be available here</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h2>Analytics Dashboard</h2>
+        <select id="timeframeSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="7">Last 7 Days</option>
+            <option value="30" selected>Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+        </select>
+    </div>
+
+    <!-- Summary Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; font-size: 24px;" id="totalViews">-</h3>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Views</p>
+                </div>
+                <i class="fas fa-eye" style="font-size: 32px; opacity: 0.8;"></i>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; font-size: 24px;" id="totalLikes">-</h3>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Likes</p>
+                </div>
+                <i class="fas fa-heart" style="font-size: 32px; opacity: 0.8;"></i>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; font-size: 24px;" id="totalShares">-</h3>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Shares</p>
+                </div>
+                <i class="fas fa-share" style="font-size: 32px; opacity: 0.8;"></i>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #f39c12, #e67e22); color: white; padding: 20px; border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; font-size: 24px;" id="totalVideos">-</h3>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Videos</p>
+                </div>
+                <i class="fas fa-video" style="font-size: 32px; opacity: 0.8;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px;">
+        <!-- Views Over Time Chart -->
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h3 style="margin-bottom: 15px;">Views Over Time</h3>
+            <canvas id="viewsChart" width="400" height="200"></canvas>
+        </div>
+        
+        <!-- Share Platforms Chart -->
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h3 style="margin-bottom: 15px;">Share Platforms</h3>
+            <canvas id="sharesChart" width="300" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Top Performing Videos -->
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h3 style="margin-bottom: 15px;">Top Performing Videos</h3>
+        <div id="topVideosList" style="max-height: 400px; overflow-y: auto;">
+            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+        <h3 style="margin-bottom: 15px;">Recent Activity</h3>
+        <div id="recentActivity">
+            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                <p>Loading...</p>
+            </div>
+        </div>
     </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+let viewsChart, sharesChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts
+    initializeCharts();
+    
+    // Load analytics data
+    loadAnalytics();
+    
+    // Timeframe selector
+    document.getElementById('timeframeSelect').addEventListener('change', function() {
+        loadAnalytics(this.value);
+    });
+    
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+        const selectedTimeframe = document.getElementById('timeframeSelect').value;
+        loadAnalytics(selectedTimeframe);
+    }, 5 * 60 * 1000);
+});
+
+function initializeCharts() {
+    // Views Chart
+    const viewsCtx = document.getElementById('viewsChart').getContext('2d');
+    viewsChart = new Chart(viewsCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Views',
+                data: [],
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Shares Chart
+    const sharesCtx = document.getElementById('sharesChart').getContext('2d');
+    sharesChart = new Chart(sharesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#25d366', // WhatsApp
+                    '#1da1f2', // Twitter
+                    '#3b5998', // Facebook
+                    '#0088cc', // Telegram
+                    '#0077b5', // LinkedIn
+                    '#ff6b6b'  // Other
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+async function loadAnalytics(timeframe = '30') {
+    try {
+        showLoading();
+        
+        const response = await fetch(`/api/admin/analytics/detailed?timeframe=${timeframe}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateSummaryCards(data.data.totalStats);
+            updateViewsChart(data.data.viewsOverTime);
+            updateSharesChart(data.data.sharesByPlatform);
+            updateTopVideosList(data.data.topVideos);
+            updateRecentActivity(data.data.viewsOverTime);
+        } else {
+            throw new Error(data.message);
+        }
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Load analytics error:', error);
+        showError('Failed to load analytics: ' + error.message);
+        hideLoading();
+    }
+}
+
+function updateSummaryCards(stats) {
+    document.getElementById('totalViews').textContent = formatNumber(stats.total_views || 0);
+    document.getElementById('totalLikes').textContent = formatNumber(stats.total_likes || 0);
+    document.getElementById('totalShares').textContent = formatNumber(stats.total_shares || 0);
+    document.getElementById('totalVideos').textContent = formatNumber(stats.total_videos || 0);
+}
+
+function updateViewsChart(viewsData) {
+    if (!viewsData || viewsData.length === 0) {
+        viewsChart.data.labels = ['No Data'];
+        viewsChart.data.datasets[0].data = [0];
+    } else {
+        viewsChart.data.labels = viewsData.map(item => 
+            new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        ).reverse();
+        viewsChart.data.datasets[0].data = viewsData.map(item => item.total_views).reverse();
+    }
+    viewsChart.update();
+}
+
+function updateSharesChart(sharesData) {
+    if (!sharesData || sharesData.length === 0) {
+        sharesChart.data.labels = ['No Data'];
+        sharesChart.data.datasets[0].data = [1];
+    } else {
+        sharesChart.data.labels = sharesData.map(item => 
+            item.platform.charAt(0).toUpperCase() + item.platform.slice(1)
+        );
+        sharesChart.data.datasets[0].data = sharesData.map(item => item.share_count);
+    }
+    sharesChart.update();
+}
+
+function updateTopVideosList(topVideos) {
+    const container = document.getElementById('topVideosList');
+    
+    if (!topVideos || topVideos.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                <i class="fas fa-video-slash" style="font-size: 48px; margin-bottom: 10px;"></i>
+                <p>No videos found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = topVideos.map((video, index) => `
+        <div style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #e9ecef; ${index === 0 ? 'background: rgba(255, 215, 0, 0.1);' : ''}">
+            <div style="background: ${index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#7f8c8d'}; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 15px;">
+                ${index + 1}
+            </div>
+            <div style="flex: 1;">
+                <h4 style="margin: 0 0 5px 0; font-size: 16px;">${video.title}</h4>
+                <div style="display: flex; gap: 15px; font-size: 12px; color: #7f8c8d;">
+                    <span><i class="fas fa-eye"></i> ${formatNumber(video.views_count)}</span>
+                    <span><i class="fas fa-heart"></i> ${formatNumber(video.likes_count)}</span>
+                    <span><i class="fas fa-share"></i> ${formatNumber(video.shares_count)}</span>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-weight: bold; color: #2c3e50;">
+                    ${Math.round(video.engagement_score * 10) / 10}
+                </div>
+                <div style="font-size: 11px; color: #7f8c8d;">
+                    Engagement
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateRecentActivity(viewsData) {
+    const container = document.getElementById('recentActivity');
+    
+    if (!viewsData || viewsData.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                <i class="fas fa-clock" style="font-size: 48px; margin-bottom: 10px;"></i>
+                <p>No recent activity</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const recentData = viewsData.slice(0, 5);
+    
+    container.innerHTML = recentData.map(item => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e9ecef;">
+            <div>
+                <div style="font-weight: 500;">${new Date(item.date).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })}</div>
+                <div style="font-size: 12px; color: #7f8c8d;">
+                    ${item.videos_viewed} videos viewed by ${item.unique_users} users
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-weight: bold; color: #3498db;">
+                    ${formatNumber(item.total_views)} views
+                </div>
+                <div style="font-size: 11px; color: #7f8c8d;">
+                    Avg: ${Math.round(item.avg_duration || 0)}s
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+}
+
+function showLoading() {
+    // Add loading state to cards
+    document.querySelectorAll('#totalViews, #totalLikes, #totalShares, #totalVideos').forEach(el => {
+        el.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    });
+}
+
+function hideLoading() {
+    // Loading state will be replaced by actual data
+}
+
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #e74c3c;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 5px;
+        z-index: 1000;
+        max-width: 300px;
+    `;
+    errorDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 5000);
+}
+</script>

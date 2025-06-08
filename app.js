@@ -9,13 +9,22 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const rateLimit = require('express-rate-limit');
 const ejsMate = require('ejs-mate');
+const { initDatabase } = require('./src/config/database');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // Import routes
 const routes = require('./src/routes');
+
+initDatabase().then(() => {
+    console.log('✅ Database initialization complete');
+}).catch(error => {
+    console.error('❌ Database initialization failed:', error);
+    // Don't exit the process, continue without database
+});
 
 // Security middleware
 app.use(helmet({

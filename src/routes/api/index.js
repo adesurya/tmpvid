@@ -1,4 +1,3 @@
-// src/routes/api/index.js
 const express = require('express');
 const router = express.Router();
 
@@ -8,9 +7,16 @@ const categoryRoutes = require('./categories');
 const seriesRoutes = require('./series');
 const adminRoutes = require('./admin');
 
-// Debug middleware
+// Debug middleware for API routes
 router.use((req, res, next) => {
-    console.log(`API Request: ${req.method} ${req.originalUrl}`);
+    console.log(`[API] ${req.method} ${req.originalUrl}`);
+    console.log(`[API] Accept header: ${req.headers.accept}`);
+    next();
+});
+
+// Ensure JSON response for all API routes
+router.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
     next();
 });
 
@@ -27,15 +33,26 @@ router.get('/health', (req, res) => {
     res.json({
         success: true,
         message: 'API is running',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
     });
 });
 
 // 404 handler for API routes
 router.use('*', (req, res) => {
+    console.log(`[API] 404 - Route not found: ${req.originalUrl}`);
     res.status(404).json({
         success: false,
-        message: 'API endpoint not found'
+        message: 'API endpoint not found',
+        path: req.originalUrl,
+        availableEndpoints: [
+            'GET /api/health',
+            'GET /api/videos/feed',
+            'GET /api/categories',
+            'POST /api/videos/:id/like',
+            'POST /api/videos/:id/share',
+            'POST /api/videos/:id/view'
+        ]
     });
 });
 

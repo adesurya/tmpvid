@@ -1,4 +1,3 @@
-// src/controllers/categoryController.js
 const Category = require('../models/Category');
 const Joi = require('joi');
 
@@ -12,7 +11,6 @@ class CategoryController {
     static async getAll(req, res) {
         try {
             console.log('CategoryController.getAll - Request path:', req.path);
-            console.log('CategoryController.getAll - Headers:', req.headers.accept);
             
             const categories = await Category.getAll();
             console.log('CategoryController.getAll - Found categories:', categories.length);
@@ -25,7 +23,6 @@ class CategoryController {
                 });
             }
             
-            // Only render if it's NOT an API request
             if (req.xhr || req.headers.accept.indexOf('json') > -1) {
                 return res.json({
                     success: true,
@@ -41,7 +38,6 @@ class CategoryController {
         } catch (error) {
             console.error('Get categories error:', error);
             
-            // ALWAYS return JSON for API requests
             if (req.originalUrl.startsWith('/api/') || req.xhr || req.headers.accept.indexOf('json') > -1) {
                 return res.status(500).json({
                     success: false,
@@ -60,8 +56,6 @@ class CategoryController {
 
     static async create(req, res) {
         try {
-            console.log('CategoryController.create - Creating category:', req.body);
-            
             const { error, value } = categorySchema.validate(req.body);
             if (error) {
                 return res.status(400).json({
@@ -71,7 +65,6 @@ class CategoryController {
             }
 
             const category = await Category.create(value);
-            console.log('CategoryController.create - Category created:', category);
             
             res.json({
                 success: true,
@@ -82,8 +75,7 @@ class CategoryController {
             console.error('Create category error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to create category',
-                error: error.message
+                message: 'Failed to create category'
             });
         }
     }
@@ -91,9 +83,8 @@ class CategoryController {
     static async update(req, res) {
         try {
             const { id } = req.params;
-            console.log('CategoryController.update - Updating category:', id, req.body);
-            
             const { error, value } = categorySchema.validate(req.body);
+            
             if (error) {
                 return res.status(400).json({
                     success: false,
@@ -119,8 +110,7 @@ class CategoryController {
             console.error('Update category error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to update category',
-                error: error.message
+                message: 'Failed to update category'
             });
         }
     }
@@ -128,7 +118,6 @@ class CategoryController {
     static async delete(req, res) {
         try {
             const { id } = req.params;
-            console.log('CategoryController.delete - Deleting category:', id);
             
             const deleted = await Category.delete(parseInt(id));
             
@@ -147,8 +136,7 @@ class CategoryController {
             console.error('Delete category error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to delete category',
-                error: error.message
+                message: 'Failed to delete category'
             });
         }
     }

@@ -1,8 +1,7 @@
-// src/controllers/videoController.js
+
 const Video = require('../models/Video');
 const Category = require('../models/Category');
 const storageService = require('../services/storageService');
-const videoService = require('../services/videoService');
 const Joi = require('joi');
 
 // Validation schemas
@@ -16,63 +15,90 @@ const videoSchema = Joi.object({
 });
 
 class VideoController {
-// Get video feed (for main page)
-static async getFeed(req, res) {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        
-        console.log('getFeed - requesting videos with limit:', limit);
-        
-        // Coba method sederhana dulu
-        let videos;
+    // Get video feed (for main page)
+    static async getFeed(req, res) {
         try {
-            videos = await Video.getRandomVideos(limit);
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            
+            console.log('getFeed - requesting videos with limit:', limit);
+            console.log('getFeed - request path:', req.originalUrl);
+            console.log('getFeed - content-type requested:', req.headers.accept);
+            
+            // Try to get videos
+            let videos;
+            try {
+                videos = await Video.getRandomVideos(limit);
+            } catch (error) {
+                console.log('getRandomVideos failed, trying simple method...');
+                videos = await Video.getRandomVideosSimple(limit);
+            }
+            
+            console.log('getFeed - got videos count:', videos.length);
+            
+            // ALWAYS return JSON for API requests (starts with /api/)
+            if (req.originalUrl.startsWith('/api/')) {
+                console.log('getFeed - returning JSON for API request');
+                return res.json({
+                    success: true,
+                    data: videos || [],
+                    hasMore: videos ? videos.length === limit : false,
+                    pagination: {
+                        page: page,
+                        limit: limit,
+                        total: videos ? videos.length : 0
+                    }
+                });
+            }
+            
+            // Return JSON for AJAX requests
+            if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+                console.log('getFeed - returning JSON for AJAX request');
+                return res.json({
+                    success: true,
+                    data: videos || [],
+                    hasMore: videos ? videos.length === limit : false
+                });
+            }
+            
+            // Only render HTML for direct browser requests
+            console.log('getFeed - rendering HTML for browser request');
+            res.render('index', {
+                title: 'Video Platform',
+                videos: videos || [],
+                page: page,
+                layout: 'layouts/main'
+            });
+            
         } catch (error) {
-            console.log('getRandomVideos failed, trying simple method...');
-            videos = await Video.getRandomVideosSimple(limit);
-        }
-        
-        console.log('getFeed - got videos count:', videos.length);
-        
-        if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-            return res.json({
-                success: true,
-                data: videos,
-                hasMore: videos.length === limit
+            console.error('Get feed error:', error);
+            
+            // ALWAYS return JSON for API requests
+            if (req.originalUrl.startsWith('/api/') || req.xhr || req.headers.accept.indexOf('json') > -1) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to load videos: ' + error.message,
+                    data: [],
+                    error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                });
+            }
+            
+            // Render error page for browser requests
+            res.render('index', {
+                title: 'Video Platform',
+                videos: [],
+                error: 'Failed to load videos',
+                layout: 'layouts/main'
             });
         }
-        
-        res.render('index', {
-            title: 'Video Platform',
-            videos: videos,
-            page: page,
-            layout: 'layouts/main'
-        });
-    } catch (error) {
-        console.error('Get feed error:', error);
-        
-        if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to load videos',
-                data: []
-            });
-        }
-        
-        // Render halaman dengan empty videos
-        res.render('index', {
-            title: 'Video Platform',
-            videos: [],
-            error: 'Failed to load videos',
-            layout: 'layouts/main'
-        });
     }
-}
+
     // Get single video
     static async getVideo(req, res) {
         try {
             const { slug } = req.params;
+            console.log('Getting video with slug:', slug);
+            
             const video = await Video.findBySlug(slug);
             
             if (!video) {
@@ -88,10 +114,19 @@ static async getFeed(req, res) {
             const ipAddress = req.ip || req.connection.remoteAddress;
             const userAgent = req.get('User-Agent');
             
-            await Video.incrementViews(video.id, userId, ipAddress, userAgent);
+            try {
+                await Video.incrementViews(video.id, userId, ipAddress, userAgent);
+            } catch (error) {
+                console.log('Failed to increment views:', error);
+            }
             
             // Get related videos
-            const relatedVideos = await Video.getRandomVideos(5, video.id);
+            let relatedVideos = [];
+            try {
+                relatedVideos = await Video.getRandomVideos(5, video.id);
+            } catch (error) {
+                console.log('Failed to get related videos:', error);
+            }
             
             if (req.xhr || req.headers.accept.indexOf('json') > -1) {
                 return res.json({
@@ -116,6 +151,91 @@ static async getFeed(req, res) {
                 message: 'Failed to load video',
                 layout: 'layouts/main'
             });
+        }
+    }
+
+    // Get embed video (for sharing and social media)
+    static async getEmbedVideo(req, res) {
+        try {
+            const { slug } = req.params;
+            console.log('Getting embed video for slug:', slug);
+            
+            const video = await Video.findBySlug(slug);
+            
+            if (!video) {
+                return res.status(404).send(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>Video Not Found</title></head>
+                    <body style="background: #000; color: #fff; text-align: center; padding: 50px;">
+                        <h1>Video Not Found</h1>
+                        <p>The video you are looking for does not exist.</p>
+                    </body>
+                    </html>
+                `);
+            }
+            
+            // Record view for embed
+            const userId = req.session.user ? req.session.user.id : null;
+            const ipAddress = req.ip || req.connection.remoteAddress;
+            const userAgent = req.get('User-Agent');
+            
+            try {
+                await Video.incrementViews(video.id, userId, ipAddress, userAgent, 0);
+            } catch (error) {
+                console.log('Failed to record embed view:', error);
+            }
+            
+            // Return inline HTML for embed
+            res.send(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${video.title} - VideoApp</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { background: #000; font-family: Arial, sans-serif; overflow: hidden; }
+                        .embed-container { position: relative; width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
+                        .embed-video { width: 100%; height: 100%; object-fit: contain; }
+                        .embed-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 20px; color: white; transition: opacity 0.5s; }
+                        .embed-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+                        .embed-meta { font-size: 14px; opacity: 0.8; }
+                        .embed-branding { position: absolute; top: 10px; right: 10px; background: rgba(254, 44, 85, 0.9); color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: 600; text-decoration: none; }
+                        .embed-branding:hover { background: rgba(254, 44, 85, 1); }
+                    </style>
+                </head>
+                <body>
+                    <div class="embed-container">
+                        <video class="embed-video" src="${video.video_url}" controls autoplay muted playsinline ${video.thumbnail ? `poster="${video.thumbnail}"` : ''}></video>
+                        <div class="embed-overlay" id="overlay">
+                            <div class="embed-title">${video.title}</div>
+                            <div class="embed-meta">${video.views_count || 0} views${video.username ? ` • @${video.username}` : ''}</div>
+                        </div>
+                        <a href="/video/${video.slug}" target="_blank" class="embed-branding">VideoApp</a>
+                    </div>
+                    <script>
+                        fetch('/api/videos/${video.id}/view', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watchDuration: 0, source: 'embed' }) }).catch(err => console.log('Failed to track embed view'));
+                        setTimeout(() => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '0'; }, 3000);
+                        document.addEventListener('mouseover', () => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '1'; });
+                        document.addEventListener('mouseout', () => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '0'; });
+                    </script>
+                </body>
+                </html>
+            `);
+        } catch (error) {
+            console.error('Get embed video error:', error);
+            res.status(500).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Server Error</title></head>
+                <body style="background: #000; color: #fff; text-align: center; padding: 50px;">
+                    <h1>Server Error</h1>
+                    <p>Failed to load video</p>
+                </body>
+                </html>
+            `);
         }
     }
 
@@ -245,58 +365,92 @@ static async getFeed(req, res) {
         }
     }
 
-    // Like/Unlike video
-    static async toggleLike(req, res) {
-        try {
-            const { id } = req.params;
-            const userId = req.session.user ? req.session.user.id : null;
-            
-            if (!userId) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'You must be logged in to like videos'
-                });
-            }
-            
-            const result = await Video.toggleLike(parseInt(id), userId);
-            
-            res.json({
-                success: true,
-                data: result
-            });
-        } catch (error) {
-            console.error('Toggle like error:', error);
-            res.status(500).json({
+    // Toggle like
+static async toggleLike(req, res) {
+    try {
+        const { id } = req.params;
+        const userId = req.session?.user?.id || req.user?.id || null;
+        
+        console.log('Toggle like for video:', id, 'user:', userId);
+        
+        if (!userId) {
+            // Create a guest like system or require login
+            return res.status(200).json({
                 success: false,
-                message: 'Failed to toggle like'
+                message: 'Please login to like videos',
+                requiresLogin: true
             });
         }
+        
+        const result = await Video.toggleLike(parseInt(id), userId);
+        
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('Toggle like error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to toggle like'
+        });
     }
+}
 
     // Share video
-    static async share(req, res) {
-        try {
-            const { id } = req.params;
-            const { platform } = req.body;
-            const userId = req.session.user ? req.session.user.id : null;
-            
-            await Video.recordShare(parseInt(id), userId, platform);
-            
-            res.json({
-                success: true,
-                message: 'Share recorded successfully'
-            });
-        } catch (error) {
-            console.error('Share video error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to record share'
-            });
-        }
+static async share(req, res) {
+    try {
+        const { id } = req.params;
+        const { platform } = req.body;
+        const userId = req.session?.user?.id || req.user?.id || null;
+        
+        console.log('Share video:', id, 'platform:', platform, 'user:', userId);
+        
+        await Video.recordShare(parseInt(id), userId, platform);
+        
+        res.json({
+            success: true,
+            message: 'Share recorded successfully'
+        });
+    } catch (error) {
+        console.error('Share video error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to record share'
+        });
     }
+}
+
+    // Record video view
+    static async recordView(req, res) {
+    try {
+        const { id } = req.params;
+        const { watchDuration = 0, source = 'web' } = req.body;
+        const userId = req.session?.user?.id || req.user?.id || null;
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        const userAgent = req.get('User-Agent');
+        
+        console.log(`Recording view for video ${id}, duration: ${watchDuration}s, source: ${source}, user: ${userId}`);
+        
+        // Record view (count as view if watched for at least 3 seconds or from embed)
+        if (watchDuration >= 3 || source === 'embed') {
+            await Video.incrementViews(parseInt(id), userId, ipAddress, userAgent, watchDuration);
+        }
+        
+        res.json({
+            success: true,
+            message: 'View recorded successfully'
+        });
+    } catch (error) {
+        console.error('Record view error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to record view'
+        });
+    }
+}
 
     // Upload video (Admin)
-    // Tambahkan/update method upload di VideoController
     static async upload(req, res) {
         try {
             console.log('Upload request received');
@@ -319,11 +473,11 @@ static async getFeed(req, res) {
                 });
             }
             
-            // Untuk sementara, kita simpan info file saja tanpa processing
+            // Create video data
             const videoData = {
                 ...value,
                 video_url: `/uploads/videos/${req.file.filename}`,
-                duration: 0, // Akan diisi nanti dengan FFmpeg
+                duration: 0, // Will be filled later with FFmpeg
                 file_size: req.file.size,
                 storage_type: 'local',
                 user_id: req.session.user.id,
@@ -398,12 +552,22 @@ static async getFeed(req, res) {
                 });
             }
             
-            // Delete file from storage
-            await storageService.deleteVideo(video.video_url, video.storage_type);
+            // Delete file from storage if exists
+            if (storageService && video.video_url) {
+                try {
+                    await storageService.deleteVideo(video.video_url, video.storage_type);
+                } catch (error) {
+                    console.log('Failed to delete video file:', error);
+                }
+            }
             
             // Delete thumbnail if exists
-            if (video.thumbnail) {
-                await storageService.deleteFile(video.thumbnail, video.storage_type);
+            if (storageService && video.thumbnail) {
+                try {
+                    await storageService.deleteFile(video.thumbnail, video.storage_type);
+                } catch (error) {
+                    console.log('Failed to delete thumbnail:', error);
+                }
             }
             
             // Delete video record
@@ -450,108 +614,100 @@ static async getFeed(req, res) {
         }
     }
 
-    // Get admin videos list
-// Get admin videos list
-static async getAdminList(req, res) {
-    try {
-        console.log('VideoController.getAdminList - Request path:', req.originalUrl);
-        
-        const { page, status, category, search } = req.query;
-        
-        const options = {
-            page: parseInt(page) || 1,
-            limit: 20,
-            status: status || null,
-            category: category ? parseInt(category) : null,
-            search: search || null
-        };
-        
-        console.log('VideoController.getAdminList - Options:', options);
-        
-        const result = await Video.getAdminVideos(options);
-        const categories = await Category.getAll();
-        
-        console.log('VideoController.getAdminList - Found videos:', result.data?.length || 0);
-        
-        // ALWAYS return JSON for API requests
-        if (req.originalUrl.startsWith('/api/')) {
-            return res.json({
+    // Get video statistics (Admin)
+    static async getVideoStats(req, res) {
+        try {
+            const { id } = req.params;
+            
+            const stats = await Video.getDetailedStats(parseInt(id));
+            
+            res.json({
                 success: true,
-                data: result.data || [],
-                pagination: result.pagination || {},
-                categories: categories || []
+                data: stats
+            });
+        } catch (error) {
+            console.error('Get video stats error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get video statistics'
             });
         }
-        
-        // Only render if it's NOT an API request
-        if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-            return res.json({
-                success: true,
-                data: result.data || [],
-                pagination: result.pagination || {},
-                categories: categories || []
-            });
-        }
-        
-        res.render('admin/videos', {
-           title: 'Manage Videos',
-           videos: result.data,
-           pagination: result.pagination,
-           categories: categories,
-           filters: {
-               status: options.status,
-               category: options.category,
-               search: options.search
-           },
-           layout: 'layouts/admin'
-       });
-   } catch (error) {
-       console.error('Get admin videos error:', error);
-       
-       // ALWAYS return JSON for API requests
-       if (req.originalUrl.startsWith('/api/') || req.xhr || req.headers.accept.indexOf('json') > -1) {
-           return res.status(500).json({
-               success: false,
-               message: 'Failed to load videos',
-               error: error.message,
-               data: []
-           });
-       }
-       
-       res.status(500).render('error', {
-           title: 'Admin Error',
-           message: 'Failed to load admin videos',
-           layout: 'layouts/main'
-       });
-   }
-}
-
-// Record video view
-static async recordView(req, res) {
-    try {
-        const { id } = req.params;
-        const userId = req.session.user ? req.session.user.id : null;
-        const ipAddress = req.ip || req.connection.remoteAddress;
-        const userAgent = req.get('User-Agent');
-        
-        console.log(`Recording view for video ${id}`);
-        
-        // Increment view count dan record view
-        await Video.incrementViews(parseInt(id), userId, ipAddress, userAgent, 0);
-        
-        res.json({
-            success: true,
-            message: 'View recorded successfully'
-        });
-    } catch (error) {
-        console.error('Record view error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to record view'
-        });
     }
-}
 
+    // Get admin videos list
+    static async getAdminList(req, res) {
+        try {
+            console.log('VideoController.getAdminList - Request path:', req.originalUrl);
+            
+            const { page, status, category, search } = req.query;
+            
+            const options = {
+                page: parseInt(page) || 1,
+                limit: 20,
+                status: status || null,
+                category: category ? parseInt(category) : null,
+                search: search || null
+            };
+            
+            console.log('VideoController.getAdminList - Options:', options);
+            
+            const result = await Video.getAdminVideos(options);
+            const categories = await Category.getAll();
+            
+            console.log('VideoController.getAdminList - Found videos:', result.data?.length || 0);
+            
+            // ALWAYS return JSON for API requests
+            if (req.originalUrl.startsWith('/api/')) {
+                return res.json({
+                    success: true,
+                    data: result.data || [],
+                    pagination: result.pagination || {},
+                    categories: categories || []
+                });
+            }
+            
+            // Only render if it's NOT an API request
+            if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+                return res.json({
+                    success: true,
+                    data: result.data || [],
+                    pagination: result.pagination || {},
+                    categories: categories || []
+                });
+            }
+            
+            res.render('admin/videos', {
+                title: 'Manage Videos',
+                videos: result.data,
+                pagination: result.pagination,
+                categories: categories,
+                filters: {
+                    status: options.status,
+                    category: options.category,
+                    search: options.search
+                },
+                layout: 'layouts/admin'
+            });
+        } catch (error) {
+            console.error('Get admin videos error:', error);
+            
+            // ALWAYS return JSON for API requests
+            if (req.originalUrl.startsWith('/api/') || req.xhr || req.headers.accept.indexOf('json') > -1) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to load videos',
+                    error: error.message,
+                    data: []
+                });
+            }
+            
+            res.status(500).render('error', {
+                title: 'Admin Error',
+                message: 'Failed to load admin videos',
+                layout: 'layouts/main'
+            });
+        }
+    }
 }
 
 module.exports = VideoController;

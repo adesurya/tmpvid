@@ -1,4 +1,3 @@
-// src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -18,13 +17,17 @@ const adminAuth = async (req, res, next) => {
         const token = req.header('Authorization')?.replace('Bearer ', '');
         
         if (token) {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-            const user = await User.findById(decoded.id);
-            
-            if (user && user.role === 'admin') {
-                req.user = user;
-                console.log('AdminAuth - JWT valid for user:', user.username);
-                return next();
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+                const user = await User.findById(decoded.id);
+                
+                if (user && user.role === 'admin') {
+                    req.user = user;
+                    console.log('AdminAuth - JWT valid for user:', user.username);
+                    return next();
+                }
+            } catch (tokenError) {
+                console.log('JWT verification failed:', tokenError.message);
             }
         }
 
@@ -54,12 +57,13 @@ const adminAuth = async (req, res, next) => {
     }
 };
 
-// Optional authentication (doesn't require login)
+// Optional authentication (doesn't require login) - FIXED
 const optionalAuth = async (req, res, next) => {
     try {
         // Check session first
         if (req.session && req.session.user) {
             req.user = req.session.user;
+            console.log('OptionalAuth - Found session user:', req.user.username);
             return next();
         }
 
@@ -67,17 +71,25 @@ const optionalAuth = async (req, res, next) => {
         const token = req.header('Authorization')?.replace('Bearer ', '');
         
         if (token) {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-            const user = await User.findById(decoded.id);
-            
-            if (user) {
-                req.user = user;
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+                const user = await User.findById(decoded.id);
+                
+                if (user) {
+                    req.user = user;
+                    console.log('OptionalAuth - Found JWT user:', user.username);
+                }
+            } catch (tokenError) {
+                console.log('OptionalAuth - JWT verification failed, continuing without auth');
             }
         }
 
+        // Continue without authentication (this is the key fix)
+        console.log('OptionalAuth - Continuing without authentication');
         next();
     } catch (error) {
-        // Continue without authentication
+        console.log('OptionalAuth - Error occurred, continuing without auth:', error.message);
+        // Continue without authentication even if there's an error
         next();
     }
 };

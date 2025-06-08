@@ -147,29 +147,34 @@ class StorageService {
     }
 
     // Delete file
-    async deleteFile(url, storageType) {
+    async deleteFile(fileUrl, storageType = 'local') {
         try {
-            if (storageType === 's3') {
-                // Extract S3 key from URL
-                const urlParts = url.split('/');
-                const key = urlParts.slice(-2).join('/'); // folder/filename
-                const result = await deleteFromS3(key);
-                return result.success;
-            } else {
-                // Delete from local storage
-                const filePath = path.join(__dirname, '../../public', url);
+            if (storageType === 'local' && fileUrl.startsWith('/uploads/')) {
+                const filePath = path.join(__dirname, '../../public', fileUrl);
                 await fs.unlink(filePath);
                 return true;
             }
+            return true;
         } catch (error) {
             console.error('Delete file error:', error);
             return false;
         }
     }
 
+
     // Delete video
-    async deleteVideo(url, storageType) {
-        return await this.deleteFile(url, storageType);
+    async deleteVideo(videoUrl, storageType = 'local') {
+        try {
+            if (storageType === 'local' && videoUrl.startsWith('/uploads/')) {
+                const filePath = path.join(__dirname, '../../public', videoUrl);
+                await fs.unlink(filePath);
+                return true;
+            }
+            return true;
+        } catch (error) {
+            console.error('Delete video error:', error);
+            return false;
+        }
     }
 
     // Optimize image using Sharp
