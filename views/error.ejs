@@ -1,0 +1,15 @@
+<%- contentFor('body') %>
+<div class="error-container">
+    <div class="error-code">⚠️</div>
+    <h1 class="error-title">Server Error</h1>
+    <p class="error-message">
+        <%= message || 'Something went wrong on our end. Please try again later.' %>
+    </p>
+    <a href="/" class="btn">
+        <i class="fas fa-home"></i>
+        Go Home
+    </a>
+    <div class="home-link">
+        <a href="/admin">Admin Dashboard</a>
+    </div>
+</div>

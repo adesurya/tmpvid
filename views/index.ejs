@@ -1,0 +1,101 @@
+<%- contentFor('body') %>
+<!-- Top Header -->
+<header style="position: fixed; top: 0; left: 0; right: 0; height: 60px; background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100;">
+    <div style="display: flex; align-items: center;">
+        <button style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; margin-right: 15px;" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <span style="font-size: 28px; font-weight: bold; color: #fe2c55;">VideoApp</span>
+    </div>
+    <button style="background: rgba(255, 255, 255, 0.2); border: none; color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; backdrop-filter: blur(10px);" onclick="openSearch()">
+        <i class="fas fa-search"></i>
+        <span>Search</span>
+    </button>
+</header>
+
+<!-- Sidebar -->
+<nav id="sidebar" style="width: 240px; background: rgba(22, 24, 35, 0.9); backdrop-filter: blur(10px); padding: 20px; position: fixed; left: 0; top: 0; height: 100vh; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease;">
+    <div style="font-size: 28px; font-weight: bold; color: #fe2c55; margin-bottom: 30px; text-align: center;">VideoApp</div>
+    <a href="/" style="display: flex; align-items: center; padding: 15px 20px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; text-decoration: none; color: #fff;">
+        <i class="fas fa-home" style="width: 24px; margin-right: 15px; font-size: 20px;"></i>
+        <span>For You</span>
+    </a>
+    <a href="/trending" style="display: flex; align-items: center; padding: 15px 20px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; text-decoration: none; color: #fff;">
+        <i class="fas fa-fire" style="width: 24px; margin-right: 15px; font-size: 20px;"></i>
+        <span>Trending</span>
+    </a>
+    <a href="/admin" style="display: flex; align-items: center; padding: 15px 20px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; text-decoration: none; color: #fff;">
+        <i class="fas fa-cog" style="width: 24px; margin-right: 15px; font-size: 20px;"></i>
+        <span>Admin</span>
+    </a>
+</nav>
+
+<!-- Sidebar Overlay -->
+<div id="sidebarOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;" onclick="toggleSidebar()"></div>
+
+<!-- Main Content -->
+<main style="height: 100vh; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch;">
+    <div id="videoContainer">
+        <!-- Welcome Message -->
+        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;">
+            <h1 style="font-size: 48px; margin-bottom: 20px; color: #fe2c55;">Welcome to VideoApp</h1>
+            <p style="font-size: 20px; color: #bbb; margin-bottom: 30px;">A TikTok-like video platform</p>
+            <p style="color: #888;">Videos will load here once uploaded by admin</p>
+            <a href="/admin" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background: #fe2c55; color: white; text-decoration: none; border-radius: 25px; font-weight: 600;">
+                Go to Admin Dashboard
+            </a>
+        </div>
+    </div>
+</main>
+
+<!-- Search Modal -->
+<div id="searchModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 2000; display: none; align-items: flex-start; justify-content: center; padding-top: 60px;">
+    <div style="width: 90%; max-width: 600px; background: rgba(22, 24, 35, 0.95); backdrop-filter: blur(20px); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <input type="text" id="searchInput" placeholder="Search videos..." style="flex: 1; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; padding: 12px 16px; border-radius: 8px; font-size: 16px; margin-right: 10px;">
+            <button onclick="closeSearch()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="searchResults" style="max-height: 60vh; overflow-y: auto;">
+            <p style="text-align: center; color: #888; padding: 20px;">Enter a search term to find videos</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar.style.transform === 'translateX(0px)') {
+        sidebar.style.transform = 'translateX(-100%)';
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+    } else {
+        sidebar.style.transform = 'translateX(0px)';
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'all';
+    }
+}
+
+function openSearch() {
+    document.getElementById('searchModal').style.display = 'flex';
+    document.getElementById('searchInput').focus();
+}
+
+function closeSearch() {
+    document.getElementById('searchModal').style.display = 'none';
+    document.getElementById('searchInput').value = '';
+}
+
+// Close search with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSearch();
+        if (document.getElementById('sidebar').style.transform === 'translateX(0px)') {
+            toggleSidebar();
+        }
+    }
+});
+</script>
