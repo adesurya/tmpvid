@@ -1,101 +1,745 @@
-<%- contentFor('body') %>
-<!-- Top Header -->
-<header style="position: fixed; top: 0; left: 0; right: 0; height: 60px; background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100;">
-    <div style="display: flex; align-items: center;">
-        <button style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; margin-right: 15px;" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
-        </button>
-        <span style="font-size: 28px; font-weight: bold; color: #fe2c55;">VideoApp</span>
-    </div>
-    <button style="background: rgba(255, 255, 255, 0.2); border: none; color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; backdrop-filter: blur(10px);" onclick="openSearch()">
-        <i class="fas fa-search"></i>
-        <span>Search</span>
-    </button>
-</header>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title><%= title || 'VideoApp' %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <nav class="top-nav">
+            <a href="/" class="logo">VideoApp</a>
+            <div class="nav-icons">
+                <button class="nav-icon" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="nav-icon" id="menuBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </nav>
 
-<!-- Sidebar -->
-<nav id="sidebar" style="width: 240px; background: rgba(22, 24, 35, 0.9); backdrop-filter: blur(10px); padding: 20px; position: fixed; left: 0; top: 0; height: 100vh; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease;">
-    <div style="font-size: 28px; font-weight: bold; color: #fe2c55; margin-bottom: 30px; text-align: center;">VideoApp</div>
-    <a href="/" style="display: flex; align-items: center; padding: 15px 20px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; text-decoration: none; color: #fff;">
-        <i class="fas fa-home" style="width: 24px; margin-right: 15px; font-size: 20px;"></i>
-        <span>For You</span>
-    </a>
-    <a href="/trending" style="display: flex; align-items: center; padding: 15px 20px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; text-decoration: none; color: #fff;">
-        <i class="fas fa-fire" style="width: 24px; margin-right: 15px; font-size: 20px;"></i>
-        <span>Trending</span>
-    </a>
-    <a href="/admin" style="display: flex; align-items: center; padding: 15px 20px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; text-decoration: none; color: #fff;">
-        <i class="fas fa-cog" style="width: 24px; margin-right: 15px; font-size: 20px;"></i>
-        <span>Admin</span>
-    </a>
-</nav>
+        <!-- Sidebar Menu -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h3>VideoApp</h3>
+                    <button class="sidebar-close" id="sidebarClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="sidebar-menu">
+                    <a href="/" class="menu-item">
+                        <i class="fas fa-home"></i>
+                        <span>For You</span>
+                    </a>
+                    <a href="/trending" class="menu-item">
+                        <i class="fas fa-fire"></i>
+                        <span>Trending</span>
+                    </a>
+                    <a href="/admin" class="menu-item">
+                        <i class="fas fa-cog"></i>
+                        <span>Admin</span>
+                    </a>
+                </div>
+            </div>
+        </div>
 
-<!-- Sidebar Overlay -->
-<div id="sidebarOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;" onclick="toggleSidebar()"></div>
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<!-- Main Content -->
-<main style="height: 100vh; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch;">
-    <div id="videoContainer">
-        <!-- Welcome Message -->
-        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;">
-            <h1 style="font-size: 48px; margin-bottom: 20px; color: #fe2c55;">Welcome to VideoApp</h1>
-            <p style="font-size: 20px; color: #bbb; margin-bottom: 30px;">A TikTok-like video platform</p>
-            <p style="color: #888;">Videos will load here once uploaded by admin</p>
-            <a href="/admin" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background: #fe2c55; color: white; text-decoration: none; border-radius: 25px; font-weight: 600;">
-                Go to Admin Dashboard
-            </a>
+        <!-- Video Container -->
+        <div class="video-container" id="videoContainer">
+            <% if (videos && videos.length > 0) { %>
+                <% videos.forEach((video, index) => { %>
+                    <div class="video-item" data-video-id="<%= video.id %>" data-index="<%= index %>">
+                        <!-- Video Element -->
+                        <video 
+                            id="video-<%= video.id %>"
+                            src="<%= video.video_url %>"
+                            loop
+                            muted
+                            playsinline
+                            preload="metadata"
+                            class="main-video"
+                        ></video>
+
+                        <!-- Video Overlay -->
+                        <div class="video-overlay"></div>
+
+                        <!-- Video Controls -->
+                        <div class="video-controls">
+                            <button class="play-pause-btn" data-video-id="<%= video.id %>">
+                                <i class="fas fa-play" id="play-icon-<%= video.id %>"></i>
+                            </button>
+                        </div>
+
+                        <!-- Side Actions -->
+                        <div class="side-actions">
+                            <button class="action-btn like-btn" data-video-id="<%= video.id %>">
+                                <i class="fas fa-heart"></i>
+                                <span class="like-count"><%= video.likes_count || 0 %></span>
+                            </button>
+                            <button class="action-btn comment-btn" data-video-id="<%= video.id %>">
+                                <i class="fas fa-comment"></i>
+                                <span>0</span>
+                            </button>
+                            <button class="action-btn share-btn" data-video-id="<%= video.id %>">
+                                <i class="fas fa-share"></i>
+                                <span>Share</span>
+                            </button>
+                            <button class="action-btn sound-btn" data-video-id="<%= video.id %>">
+                                <i class="fas fa-volume-mute" id="sound-icon-<%= video.id %>"></i>
+                                <span>Sound</span>
+                            </button>
+                        </div>
+
+                        <!-- Video Info -->
+                        <div class="video-info">
+                            <div class="video-title"><%= video.title %></div>
+                            <% if (video.description) { %>
+                                <div class="video-description"><%= video.description %></div>
+                            <% } %>
+                            <div class="video-meta">
+                                <span><i class="fas fa-eye"></i> <span class="view-count"><%= video.views_count || 0 %></span></span>
+                                <% if (video.category_name) { %>
+                                    <span><i class="fas fa-tag"></i> <%= video.category_name %></span>
+                                <% } %>
+                                <% if (video.username) { %>
+                                    <span><i class="fas fa-user"></i> @<%= video.username %></span>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            <% } else { %>
+                <!-- Empty State -->
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <h2 class="empty-title">No Videos Yet</h2>
+                    <p class="empty-description">
+                        Be the first to share amazing content!<br>
+                        Upload videos to get started.
+                    </p>
+                    <button class="empty-button" id="goToAdminBtn">
+                        Go to Admin Dashboard
+                    </button>
+                </div>
+            <% } %>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loadingState" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading more videos...</p>
+        </div>
+
+        <!-- Share Modal -->
+        <div class="share-modal" id="shareModal">
+            <div class="share-content">
+                <div class="share-header">
+                    <h3>Share Video</h3>
+                    <button class="share-close" id="shareClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="share-options">
+                    <button class="share-option" data-platform="copy">
+                        <i class="fas fa-link"></i>
+                        <span>Copy Link</span>
+                    </button>
+                    <button class="share-option" data-platform="whatsapp">
+                        <i class="fab fa-whatsapp"></i>
+                        <span>WhatsApp</span>
+                    </button>
+                    <button class="share-option" data-platform="twitter">
+                        <i class="fab fa-twitter"></i>
+                        <span>Twitter</span>
+                    </button>
+                    <button class="share-option" data-platform="facebook">
+                        <i class="fab fa-facebook"></i>
+                        <span>Facebook</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
-</main>
 
-<!-- Search Modal -->
-<div id="searchModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 2000; display: none; align-items: flex-start; justify-content: center; padding-top: 60px;">
-    <div style="width: 90%; max-width: 600px; background: rgba(22, 24, 35, 0.95); backdrop-filter: blur(20px); border-radius: 12px; padding: 20px;">
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-            <input type="text" id="searchInput" placeholder="Search videos..." style="flex: 1; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; padding: 12px 16px; border-radius: 8px; font-size: 16px; margin-right: 10px;">
-            <button onclick="closeSearch()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div id="searchResults" style="max-height: 60vh; overflow-y: auto;">
-            <p style="text-align: center; color: #888; padding: 20px;">Enter a search term to find videos</p>
-        </div>
-    </div>
-</div>
+    <script>
+        // Global variables
+        let currentVideoIndex = 0;
+        let videos = [];
+        let isLoading = false;
+        let observer;
+        let currentShareVideoId = null;
 
-<script>
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    
-    if (sidebar.style.transform === 'translateX(0px)') {
-        sidebar.style.transform = 'translateX(-100%)';
-        overlay.style.opacity = '0';
-        overlay.style.pointerEvents = 'none';
-    } else {
-        sidebar.style.transform = 'translateX(0px)';
-        overlay.style.opacity = '1';
-        overlay.style.pointerEvents = 'all';
-    }
-}
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
 
-function openSearch() {
-    document.getElementById('searchModal').style.display = 'flex';
-    document.getElementById('searchInput').focus();
-}
-
-function closeSearch() {
-    document.getElementById('searchModal').style.display = 'none';
-    document.getElementById('searchInput').value = '';
-}
-
-// Close search with Escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeSearch();
-        if (document.getElementById('sidebar').style.transform === 'translateX(0px)') {
-            toggleSidebar();
+        function initializeApp() {
+            setupEventListeners();
+            initializeVideoPlayer();
+            setupIntersectionObserver();
+            setupSwipeNavigation();
+            playCurrentVideo();
         }
-    }
-});
-</script>
+
+        function setupEventListeners() {
+            // Navigation buttons
+            document.getElementById('searchBtn')?.addEventListener('click', openSearch);
+            document.getElementById('menuBtn')?.addEventListener('click', openMenu);
+            document.getElementById('goToAdminBtn')?.addEventListener('click', goToAdmin);
+
+            // Sidebar
+            document.getElementById('sidebarClose')?.addEventListener('click', closeSidebar);
+            document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
+
+            // Share modal
+            document.getElementById('shareClose')?.addEventListener('click', closeShareModal);
+
+            // Video controls
+            document.querySelectorAll('.play-pause-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    togglePlayPause(this.dataset.videoId);
+                });
+            });
+
+            // Video click to play/pause
+            document.querySelectorAll('.main-video').forEach(video => {
+                video.addEventListener('click', function() {
+                    const videoId = this.closest('.video-item').dataset.videoId;
+                    togglePlayPause(videoId);
+                });
+            });
+
+            // Action buttons
+            document.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    toggleLike(this.dataset.videoId);
+                });
+            });
+
+            document.querySelectorAll('.comment-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openComments(this.dataset.videoId);
+                });
+            });
+
+            document.querySelectorAll('.share-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openShareModal(this.dataset.videoId);
+                });
+            });
+
+            document.querySelectorAll('.sound-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    toggleSound(this.dataset.videoId);
+                });
+            });
+
+            // Share options
+            document.querySelectorAll('.share-option').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    shareToPlat
+form(this.dataset.platform);
+                });
+            });
+
+            // Keyboard navigation
+            document.addEventListener('keydown', handleKeyNavigation);
+
+            // Page visibility change
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+        }
+
+        function initializeVideoPlayer() {
+            const videoItems = document.querySelectorAll('.video-item');
+            videos = Array.from(videoItems);
+            
+            // Preload first few videos
+            videos.slice(0, 3).forEach(item => {
+                const video = item.querySelector('video');
+                if (video) {
+                    video.load();
+                }
+            });
+        }
+
+        function setupIntersectionObserver() {
+            const options = {
+                root: document.getElementById('videoContainer'),
+                rootMargin: '0px',
+                threshold: 0.5
+            };
+
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const videoItem = entry.target;
+                        const video = videoItem.querySelector('video');
+                        const index = parseInt(videoItem.dataset.index);
+                        
+                        // Pause all other videos
+                        videos.forEach((item, i) => {
+                            const v = item.querySelector('video');
+                            if (i !== index && v) {
+                                v.pause();
+                                updatePlayIcon(item.dataset.videoId, false);
+                            }
+                        });
+
+                        // Play current video
+                        if (video) {
+                            currentVideoIndex = index;
+                            playVideo(video, videoItem.dataset.videoId);
+                            
+                            // Preload next videos
+                            preloadNextVideos(index);
+                            
+                            // Load more videos if near end
+                            if (index >= videos.length - 2) {
+                                loadMoreVideos();
+                            }
+                        }
+                    }
+                });
+            }, options);
+
+            videos.forEach(video => {
+                observer.observe(video);
+            });
+        }
+
+        function setupSwipeNavigation() {
+            const container = document.getElementById('videoContainer');
+            let startY = 0;
+            let isScrolling = false;
+
+            container.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+                isScrolling = false;
+            });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isScrolling) {
+                    const currentY = e.touches[0].clientY;
+                    const diffY = startY - currentY;
+                    
+                    if (Math.abs(diffY) > 10) {
+                        isScrolling = true;
+                    }
+                }
+            });
+        }
+
+        function playCurrentVideo() {
+            if (videos.length > 0) {
+                const currentVideo = videos[currentVideoIndex];
+                const video = currentVideo.querySelector('video');
+                if (video) {
+                    playVideo(video, currentVideo.dataset.videoId);
+                }
+            }
+        }
+
+        function playVideo(videoElement, videoId) {
+            if (videoElement) {
+                const playPromise = videoElement.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        updatePlayIcon(videoId, true);
+                        recordView(videoId);
+                    }).catch(error => {
+                        console.log('Auto-play prevented:', error);
+                        updatePlayIcon(videoId, false);
+                    });
+                }
+            }
+        }
+
+        function preloadNextVideos(currentIndex) {
+            for (let i = currentIndex + 1; i <= currentIndex + 2 && i < videos.length; i++) {
+                const video = videos[i].querySelector('video');
+                if (video && video.readyState < 2) {
+                    video.load();
+                }
+            }
+        }
+
+        async function loadMoreVideos() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            document.getElementById('loadingState').style.display = 'block';
+            
+            try {
+                const page = Math.floor(videos.length / 10) + 1;
+                console.log('Loading more videos, page:', page);
+                
+                const response = await fetch(`/api/videos/feed?page=${page}&limit=10`);
+                console.log('Load more response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Load more error:', errorText);
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const responseText = await response.text();
+                    console.error('Non-JSON response:', responseText.substring(0, 200));
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                const data = await response.json();
+                console.log('Load more data:', data);
+                
+                if (data.success && data.data.length > 0) {
+                    const container = document.getElementById('videoContainer');
+                    
+                    data.data.forEach((video, index) => {
+                        const videoItem = createVideoElement(video, videos.length + index);
+                        container.appendChild(videoItem);
+                        videos.push(videoItem);
+                        observer.observe(videoItem);
+                    });
+                    
+                    // Setup event listeners for new videos
+                    setupNewVideoListeners();
+                }
+            } catch (error) {
+                console.error('Failed to load more videos:', error);
+            } finally {
+                isLoading = false;
+                document.getElementById('loadingState').style.display = 'none';
+            }
+        }
+
+        function createVideoElement(video, index) {
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
+            videoItem.dataset.videoId = video.id;
+            videoItem.dataset.index = index;
+            
+            videoItem.innerHTML = `
+                <video 
+                    id="video-${video.id}"
+                    src="${video.video_url}"
+                    loop
+                    muted
+                    playsinline
+                    preload="metadata"
+                    class="main-video"
+                ></video>
+                
+                <div class="video-overlay"></div>
+                
+                <div class="video-controls">
+                    <button class="play-pause-btn" data-video-id="${video.id}">
+                        <i class="fas fa-play" id="play-icon-${video.id}"></i>
+                    </button>
+                </div>
+                
+                <div class="side-actions">
+                    <button class="action-btn like-btn" data-video-id="${video.id}">
+                        <i class="fas fa-heart"></i>
+                        <span class="like-count">${video.likes_count || 0}</span>
+                    </button>
+                    <button class="action-btn comment-btn" data-video-id="${video.id}">
+                        <i class="fas fa-comment"></i>
+                        <span>0</span>
+                    </button>
+                    <button class="action-btn share-btn" data-video-id="${video.id}">
+                        <i class="fas fa-share"></i>
+                        <span>Share</span>
+                    </button>
+                    <button class="action-btn sound-btn" data-video-id="${video.id}">
+                        <i class="fas fa-volume-mute" id="sound-icon-${video.id}"></i>
+                        <span>Sound</span>
+                    </button>
+                </div>
+                
+                <div class="video-info">
+                    <div class="video-title">${video.title}</div>
+                    ${video.description ? `<div class="video-description">${video.description}</div>` : ''}
+                    <div class="video-meta">
+                        <span><i class="fas fa-eye"></i> <span class="view-count">${video.views_count || 0}</span></span>
+                        ${video.category_name ? `<span><i class="fas fa-tag"></i> ${video.category_name}</span>` : ''}
+                        ${video.username ? `<span><i class="fas fa-user"></i> @${video.username}</span>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            return videoItem;
+        }
+
+        function setupNewVideoListeners() {
+            // Setup listeners for newly added videos
+            document.querySelectorAll('.play-pause-btn:not([data-listener])').forEach(btn => {
+                btn.dataset.listener = 'true';
+                btn.addEventListener('click', function() {
+                    togglePlayPause(this.dataset.videoId);
+                });
+            });
+
+            document.querySelectorAll('.main-video:not([data-listener])').forEach(video => {
+                video.dataset.listener = 'true';
+                video.addEventListener('click', function() {
+                    const videoId = this.closest('.video-item').dataset.videoId;
+                    togglePlayPause(videoId);
+                });
+            });
+
+            document.querySelectorAll('.like-btn:not([data-listener])').forEach(btn => {
+                btn.dataset.listener = 'true';
+                btn.addEventListener('click', function() {
+                    toggleLike(this.dataset.videoId);
+                });
+            });
+
+            document.querySelectorAll('.share-btn:not([data-listener])').forEach(btn => {
+                btn.dataset.listener = 'true';
+                btn.addEventListener('click', function() {
+                    openShareModal(this.dataset.videoId);
+                });
+            });
+
+            document.querySelectorAll('.sound-btn:not([data-listener])').forEach(btn => {
+                btn.dataset.listener = 'true';
+                btn.addEventListener('click', function() {
+                    toggleSound(this.dataset.videoId);
+                });
+            });
+        }
+
+        // Video control functions
+        function togglePlayPause(videoId) {
+            const video = document.getElementById(`video-${videoId}`);
+            if (video) {
+                if (video.paused) {
+                    video.play();
+                    updatePlayIcon(videoId, true);
+                } else {
+                    video.pause();
+                    updatePlayIcon(videoId, false);
+                }
+            }
+        }
+
+        function updatePlayIcon(videoId, isPlaying) {
+            const icon = document.getElementById(`play-icon-${videoId}`);
+            if (icon) {
+                icon.className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+            }
+        }
+
+        function toggleSound(videoId) {
+            const video = document.getElementById(`video-${videoId}`);
+            const icon = document.getElementById(`sound-icon-${videoId}`);
+            
+            if (video && icon) {
+                if (video.muted) {
+                    video.muted = false;
+                    icon.className = 'fas fa-volume-up';
+                } else {
+                    video.muted = true;
+                    icon.className = 'fas fa-volume-mute';
+                }
+            }
+        }
+
+        // Action functions
+        async function toggleLike(videoId) {
+            try {
+                const response = await fetch(`/api/videos/${videoId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const likeBtn = document.querySelector(`[data-video-id="${videoId}"] .like-btn`);
+                    const likeIcon = likeBtn.querySelector('i');
+                    const likeCount = likeBtn.querySelector('.like-count');
+                    
+                    if (data.data.liked) {
+                        likeBtn.classList.add('liked');
+                        likeIcon.className = 'fas fa-heart';
+                        likeCount.textContent = parseInt(likeCount.textContent) + 1;
+                    } else {
+                        likeBtn.classList.remove('liked');
+                        likeIcon.className = 'fas fa-heart';
+                        likeCount.textContent = parseInt(likeCount.textContent) - 1;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to toggle like:', error);
+                if (error.message.includes('401')) {
+                    showToast('Please login to like videos');
+                }
+            }
+        }
+
+        function openComments(videoId) {
+            showToast('Comments feature coming soon!');
+        }
+
+        function openShareModal(videoId) {
+            currentShareVideoId = videoId;
+            document.getElementById('shareModal').classList.add('show');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('show');
+            currentShareVideoId = null;
+        }
+
+        function shareToPlat_form(platform) {
+            if (!currentShareVideoId) return;
+            
+            const video = videos.find(v => v.dataset.videoId === currentShareVideoId);
+            const videoTitle = video.querySelector('.video-title').textContent;
+            const videoUrl = `${window.location.origin}/video/${currentShareVideoId}`;
+            
+            switch (platform) {
+                case 'copy':
+                    navigator.clipboard.writeText(videoUrl).then(() => {
+                        showToast('Link copied to clipboard!');
+                    });
+                    break;
+                case 'whatsapp':
+                    window.open(`https://wa.me/?text=${encodeURIComponent(videoTitle + ' - ' + videoUrl)}`);
+                    break;
+                case 'twitter':
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(videoTitle)}&url=${encodeURIComponent(videoUrl)}`);
+                    break;
+                case 'facebook':
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(videoUrl)}`);
+                    break;
+            }
+            
+            // Record share
+            recordShare(currentShareVideoId, platform);
+            closeShareModal();
+        }
+
+        async function recordShare(videoId, platform) {
+            try {
+                await fetch(`/api/videos/${videoId}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ platform })
+                });
+            } catch (error) {
+                console.error('Failed to record share:', error);
+            }
+        }
+
+        async function recordView(videoId) {
+            try {
+                await fetch(`/api/videos/${videoId}/view`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to record view:', error);
+            }
+        }
+
+        // Navigation functions
+        function openSearch() {
+            window.location.href = '/search';
+        }
+
+        function openMenu() {
+            document.getElementById('sidebar').classList.add('show');
+            document.getElementById('sidebarOverlay').classList.add('show');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('show');
+            document.getElementById('sidebarOverlay').classList.remove('show');
+        }
+
+        function goToAdmin() {
+            window.location.href = '/admin';
+        }
+
+        // Event handlers
+        function handleKeyNavigation(e) {
+            if (e.key === 'ArrowUp' && currentVideoIndex > 0) {
+                const targetVideo = videos[currentVideoIndex - 1];
+                targetVideo.scrollIntoView({ behavior: 'smooth' });
+            } else if (e.key === 'ArrowDown' && currentVideoIndex < videos.length - 1) {
+                const targetVideo = videos[currentVideoIndex + 1];
+                targetVideo.scrollIntoView({ behavior: 'smooth' });
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                const currentVideo = videos[currentVideoIndex];
+                if (currentVideo) {
+                    togglePlayPause(currentVideo.dataset.videoId);
+                }
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                videos.forEach(item => {
+                    const video = item.querySelector('video');
+                    if (video && !video.paused) {
+                        video.pause();
+                    }
+                });
+            } else {
+                playCurrentVideo();
+            }
+        }
+
+        // Utility functions
+        function showToast(message) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                z-index: 1000;
+                font-size: 14px;
+                backdrop-filter: blur(10px);
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

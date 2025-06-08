@@ -63,6 +63,59 @@ class Category {
         }
     }
 
+    static async update(id, categoryData) {
+        try {
+            let updateFields = [];
+            let updateValues = [];
+            
+            if (categoryData.name) {
+                updateFields.push('name = ?');
+                updateValues.push(categoryData.name);
+                
+                // Generate new slug if name changed
+                const slug = await this.generateUniqueSlug(categoryData.name, id);
+                updateFields.push('slug = ?');
+                updateValues.push(slug);
+            }
+            
+            if (categoryData.description !== undefined) {
+                updateFields.push('description = ?');
+                updateValues.push(categoryData.description);
+            }
+            
+            if (categoryData.image !== undefined) {
+                updateFields.push('image = ?');
+                updateValues.push(categoryData.image);
+            }
+            
+            if (updateFields.length === 0) {
+                throw new Error('No fields to update');
+            }
+            
+            updateFields.push('updated_at = NOW()');
+            updateValues.push(id);
+            
+            const sql = `UPDATE categories SET ${updateFields.join(', ')} WHERE id = ?`;
+            await query(sql, updateValues);
+            
+            return await this.findById(id);
+        } catch (error) {
+            console.error('Category update error:', error);
+            throw error;
+        }
+    }
+
+    static async delete(id) {
+        try {
+            const sql = 'DELETE FROM categories WHERE id = ?';
+            const result = await query(sql, [id]);
+            return result.affectedRows > 0;
+        } catch (error) {
+            console.error('Category delete error:', error);
+            throw error;
+        }
+    }
+
     static async generateUniqueSlug(name, excludeId = null) {
         try {
             let baseSlug = slugify(name, { lower: true, strict: true });

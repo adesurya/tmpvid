@@ -5,9 +5,12 @@ const User = require('../models/User');
 // Admin authentication middleware
 const adminAuth = async (req, res, next) => {
     try {
+        console.log('AdminAuth - checking session:', req.session?.user);
+        
         // Check if user is logged in via session
         if (req.session && req.session.user && req.session.user.role === 'admin') {
             req.user = req.session.user;
+            console.log('AdminAuth - session valid for user:', req.user.username);
             return next();
         }
 
@@ -20,12 +23,15 @@ const adminAuth = async (req, res, next) => {
             
             if (user && user.role === 'admin') {
                 req.user = user;
+                console.log('AdminAuth - JWT valid for user:', user.username);
                 return next();
             }
         }
 
+        console.log('AdminAuth - access denied');
+        
         // If this is an API request, return JSON error
-        if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+        if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.path.startsWith('/api/')) {
             return res.status(401).json({
                 success: false,
                 message: 'Admin access required'
@@ -37,7 +43,7 @@ const adminAuth = async (req, res, next) => {
     } catch (error) {
         console.error('Admin auth error:', error);
         
-        if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+        if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.path.startsWith('/api/')) {
             return res.status(401).json({
                 success: false,
                 message: 'Authentication failed'
@@ -104,7 +110,7 @@ const requireAuth = async (req, res, next) => {
     } catch (error) {
         console.error('Auth error:', error);
         
-        if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+        if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.path.startsWith('/api/')) {
             return res.status(401).json({
                 success: false,
                 message: 'Authentication required'

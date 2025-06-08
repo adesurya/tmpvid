@@ -109,37 +109,66 @@ class Video {
         }
     }
 
-    // Get random videos for feed
-    static async getRandomVideos(limit = 10, excludeId = null) {
+// Get random videos for feed
+static async getRandomVideos(limit = 10, excludeId = null) {
+    try {
+        // Gunakan CONCAT untuk menghindari masalah prepared statement
+        let sql = `
+            SELECT v.*, 
+                   c.name as category_name,
+                   u.username,
+                   (COALESCE(v.views_count, 0) * 0.6 + COALESCE(v.likes_count, 0) * 0.3 + COALESCE(v.shares_count, 0) * 0.1) as engagement_score
+            FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE v.status = 'published'
+        `;
+        
+        const params = [];
+        
+        if (excludeId) {
+            sql += ' AND v.id != ?';
+            params.push(parseInt(excludeId));
+        }
+        
+        // Tambahkan ORDER BY dan LIMIT secara manual untuk menghindari prepared statement issues
+        sql += ` ORDER BY engagement_score DESC, RAND() LIMIT ${parseInt(limit)}`;
+        
+        console.log('getRandomVideos SQL (manual limit):', sql);
+        console.log('getRandomVideos params:', params);
+        
+        const videos = await query(sql, params);
+        return videos.map(video => new Video(video));
+    } catch (error) {
+        console.error('Get random videos error:', error);
+        
+        // Fallback ke query yang sangat sederhana
         try {
-            let sql = `
-                SELECT v.*, 
-                       c.name as category_name,
-                       u.username,
-                       (v.views_count * 0.6 + v.likes_count * 0.3 + v.shares_count * 0.1) as engagement_score
-                FROM videos v
-                LEFT JOIN categories c ON v.category_id = c.id
-                LEFT JOIN users u ON v.user_id = u.id
-                WHERE v.status = 'published'
-            `;
-            
-            const params = [];
-            
-            if (excludeId) {
-                sql += ' AND v.id != ?';
-                params.push(excludeId);
-            }
-            
-            sql += ' ORDER BY engagement_score DESC, RAND() LIMIT ?';
-            params.push(limit);
-            
-            const videos = await query(sql, params);
-            return videos.map(video => new Video(video));
-        } catch (error) {
-            console.error('Get random videos error:', error);
-            throw error;
+            console.log('Trying fallback query...');
+            const fallbackSql = `SELECT * FROM videos WHERE status = 'published' ORDER BY created_at DESC LIMIT ${parseInt(limit)}`;
+            const fallbackVideos = await query(fallbackSql, []);
+            return fallbackVideos.map(video => new Video(video));
+        } catch (fallbackError) {
+            console.error('Fallback query also failed:', fallbackError);
+            return [];
         }
     }
+}
+
+// Alternative method tanpa JOIN untuk debugging
+static async getRandomVideosSimple(limit = 10) {
+    try {
+        const sql = `SELECT * FROM videos WHERE status = 'published' ORDER BY created_at DESC LIMIT ${parseInt(limit)}`;
+        console.log('Simple query SQL:', sql);
+        
+        const videos = await query(sql, []);
+        return videos.map(video => new Video(video));
+    } catch (error) {
+        console.error('Get random videos simple error:', error);
+        return [];
+    }
+}
+        
 
     // Search videos
     static async search(searchTerm, options = {}) {
@@ -311,73 +340,74 @@ class Video {
         }
     }
 
-    // Increment view count
-    static async incrementViews(id, userId = null, ipAddress = null, userAgent = null, watchDuration = 0) {
-        try {
-            await transaction(async (connection) => {
-                // Update video views count
-                await connection.execute(
-                    'UPDATE videos SET views_count = views_count + 1 WHERE id = ?',
-                    [id]
-                );
-                
-                // Log the view
-                await connection.execute(`
-                    INSERT INTO video_views (video_id, user_id, ip_address, user_agent, watch_duration)
-                    VALUES (?, ?, ?, ?, ?)
-                `, [id, userId, ipAddress, userAgent, watchDuration]);
-            });
+// Increment view count
+static async incrementViews(id, userId = null, ipAddress = null, userAgent = null, watchDuration = 0) {
+    try {
+        return await transaction(async (connection) => {
+            // Update video views count
+            await connection.query(
+                'UPDATE videos SET views_count = views_count + 1 WHERE id = ?',
+                [id]
+            );
             
-            return true;
-        } catch (error) {
-            console.error('Increment views error:', error);
-            throw error;
-        }
+            // Log the view
+            await connection.query(`
+                INSERT INTO video_views (video_id, user_id, ip_address, user_agent, watch_duration)
+                VALUES (?, ?, ?, ?, ?)
+            `, [id, userId, ipAddress, userAgent, watchDuration]);
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('Increment views error:', error);
+        // Don't throw error, just log it
+        return false;
     }
+}
 
-    // Toggle like
-    static async toggleLike(videoId, userId) {
-        try {
-            return await transaction(async (connection) => {
-                // Check if already liked
-                const [existing] = await connection.execute(
-                    'SELECT id FROM video_likes WHERE video_id = ? AND user_id = ?',
+// Toggle like
+static async toggleLike(videoId, userId) {
+    try {
+        return await transaction(async (connection) => {
+            // Check if already liked
+            const [existing] = await connection.query(
+                'SELECT id FROM video_likes WHERE video_id = ? AND user_id = ?',
+                [videoId, userId]
+            );
+            
+            if (existing.length > 0) {
+                // Remove like
+                await connection.query(
+                    'DELETE FROM video_likes WHERE video_id = ? AND user_id = ?',
                     [videoId, userId]
                 );
                 
-                if (existing.length > 0) {
-                    // Remove like
-                    await connection.execute(
-                        'DELETE FROM video_likes WHERE video_id = ? AND user_id = ?',
-                        [videoId, userId]
-                    );
-                    
-                    await connection.execute(
-                        'UPDATE videos SET likes_count = likes_count - 1 WHERE id = ?',
-                        [videoId]
-                    );
-                    
-                    return { liked: false, action: 'unliked' };
-                } else {
-                    // Add like
-                    await connection.execute(
-                        'INSERT INTO video_likes (video_id, user_id) VALUES (?, ?)',
-                        [videoId, userId]
-                    );
-                    
-                    await connection.execute(
-                        'UPDATE videos SET likes_count = likes_count + 1 WHERE id = ?',
-                        [videoId]
-                    );
-                    
-                    return { liked: true, action: 'liked' };
-                }
-            });
-        } catch (error) {
-            console.error('Toggle like error:', error);
-            throw error;
-        }
+                await connection.query(
+                    'UPDATE videos SET likes_count = GREATEST(likes_count - 1, 0) WHERE id = ?',
+                    [videoId]
+                );
+                
+                return { liked: false, action: 'unliked' };
+            } else {
+                // Add like
+                await connection.query(
+                    'INSERT INTO video_likes (video_id, user_id) VALUES (?, ?)',
+                    [videoId, userId]
+                );
+                
+                await connection.query(
+                    'UPDATE videos SET likes_count = likes_count + 1 WHERE id = ?',
+                    [videoId]
+                );
+                
+                return { liked: true, action: 'liked' };
+            }
+        });
+    } catch (error) {
+        console.error('Toggle like error:', error);
+        throw error;
     }
+}
 
     // Record share
     static async recordShare(videoId, userId = null, platform = 'unknown') {
@@ -437,50 +467,94 @@ class Video {
     }
 
     // Get admin videos with pagination
-    static async getAdminVideos(options = {}) {
-        try {
-            const { page = 1, limit = 20, status = null, category = null, search = null } = options;
-            
-            let sql = `
-                SELECT v.*, 
-                       c.name as category_name,
-                       s.title as series_title,
-                       u.username
-                FROM videos v
-                LEFT JOIN categories c ON v.category_id = c.id
-                LEFT JOIN series s ON v.series_id = s.id
-                LEFT JOIN users u ON v.user_id = u.id
-                WHERE 1=1
-            `;
-            
-            const params = [];
-            
-            if (status) {
-                sql += ' AND v.status = ?';
-                params.push(status);
-            }
-            
-            if (category) {
-                sql += ' AND v.category_id = ?';
-                params.push(category);
-            }
-            
-            if (search) {
-                sql += ' AND (v.title LIKE ? OR v.description LIKE ?)';
-                params.push(`%${search}%`, `%${search}%`);
-            }
-            
-            sql += ' ORDER BY v.created_at DESC';
-            
-            const result = await dbUtils.paginate(sql, params, page, limit);
-            result.data = result.data.map(video => new Video(video));
-            
-            return result;
-        } catch (error) {
-            console.error('Get admin videos error:', error);
-            throw error;
+// Get admin videos with pagination
+static async getAdminVideos(options = {}) {
+    try {
+        const { page = 1, limit = 20, status = null, category = null, search = null } = options;
+        
+        let sql = `
+            SELECT v.*, 
+                   c.name as category_name,
+                   s.title as series_title,
+                   u.username
+            FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN series s ON v.series_id = s.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        
+        if (status) {
+            sql += ' AND v.status = ?';
+            params.push(status);
         }
+        
+        if (category) {
+            sql += ' AND v.category_id = ?';
+            params.push(parseInt(category));
+        }
+        
+        if (search) {
+            sql += ' AND (v.title LIKE ? OR v.description LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+        }
+        
+        sql += ' ORDER BY v.created_at DESC';
+        
+        console.log('getAdminVideos SQL:', sql);
+        console.log('getAdminVideos params:', params);
+        
+        // Pagination
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const paginatedSql = sql + ` LIMIT ? OFFSET ?`;
+        const paginatedParams = [...params, parseInt(limit), offset];
+        
+        // Count query
+        const countSql = `SELECT COUNT(*) as total FROM videos v
+                         LEFT JOIN categories c ON v.category_id = c.id
+                         LEFT JOIN series s ON v.series_id = s.id
+                         LEFT JOIN users u ON v.user_id = u.id
+                         WHERE 1=1` + 
+                         (status ? ' AND v.status = ?' : '') +
+                         (category ? ' AND v.category_id = ?' : '') +
+                         (search ? ' AND (v.title LIKE ? OR v.description LIKE ?)' : '');
+        
+        const [videos, countResult] = await Promise.all([
+            query(paginatedSql, paginatedParams),
+            query(countSql, params)
+        ]);
+        
+        const total = countResult[0]?.total || 0;
+        const totalPages = Math.ceil(total / parseInt(limit));
+        
+        return {
+            data: videos.map(video => new Video(video)),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: totalPages,
+                hasNext: parseInt(page) < totalPages,
+                hasPrev: parseInt(page) > 1
+            }
+        };
+    } catch (error) {
+        console.error('Get admin videos error:', error);
+        return {
+            data: [],
+            pagination: {
+                page: 1,
+                limit: 20,
+                total: 0,
+                totalPages: 0,
+                hasNext: false,
+                hasPrev: false
+            }
+        };
     }
+}
 
     // Get video analytics
     static async getAnalytics(id, days = 30) {

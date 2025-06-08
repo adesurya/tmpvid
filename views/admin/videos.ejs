@@ -1,16 +1,349 @@
-<%- contentFor('body') %>
 <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
         <h2>Manage Videos</h2>
-        <button class="btn btn-primary" onclick="alert('Upload functionality will be implemented with file handling')">
+        <button id="uploadVideoBtn" class="btn btn-primary">
             <i class="fas fa-plus"></i>
             Upload Video
         </button>
     </div>
     
-    <div style="text-align: center; padding: 50px; color: #7f8c8d;">
-        <i class="fas fa-video" style="font-size: 64px; margin-bottom: 20px; color: #bdc3c7;"></i>
-        <h3>No Videos Yet</h3>
-        <p>Upload your first video to get started</p>
+    <div id="videosList">
+        <div style="text-align: center; padding: 50px; color: #7f8c8d;">
+            <i class="fas fa-video" style="font-size: 64px; margin-bottom: 20px; color: #bdc3c7;"></i>
+            <h3>Loading Videos...</h3>
+        </div>
     </div>
 </div>
+
+<!-- Upload Video Modal -->
+<div id="uploadVideoModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+        <h3 style="margin-bottom: 20px;">Upload New Video</h3>
+        
+        <form id="uploadVideoForm" enctype="multipart/form-data">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Title:</label>
+                <input type="text" name="title" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Description:</label>
+                <textarea name="description" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; height: 80px;"></textarea>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Category:</label>
+                <select name="category_id" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    <option value="">Select Category</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Video Quality:</label>
+                <select name="video_quality" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    <option value="720p">720p</option>
+                    <option value="360p">360p</option>
+                    <option value="1080p">1080p</option>
+                    <option value="4K">4K</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Status:</label>
+                <select name="status" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                    <option value="private">Private</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Video File:</label>
+                <input type="file" name="video" accept="video/*" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Supported formats: MP4, AVI, MOV, WMV, FLV (Max: 500MB)
+                </small>
+            </div>
+            
+            <div id="uploadProgress" style="display: none; margin-bottom: 20px;">
+                <div style="background: #f0f0f0; border-radius: 5px; overflow: hidden;">
+                    <div id="progressBar" style="height: 20px; background: #3498db; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <p id="progressText" style="text-align: center; margin-top: 5px;">Uploading...</p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" id="cancelUploadBtn" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;">Cancel</button>
+                <button type="submit" id="submitUploadBtn" class="btn btn-primary">
+                    <i class="fas fa-upload"></i>
+                    Upload Video
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentXHR = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Event listeners
+    document.getElementById('uploadVideoBtn').addEventListener('click', showUploadModal);
+    document.getElementById('cancelUploadBtn').addEventListener('click', hideUploadModal);
+    document.getElementById('uploadVideoForm').addEventListener('submit', handleVideoUpload);
+    
+    // Close modal when clicking outside
+    document.getElementById('uploadVideoModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideUploadModal();
+        }
+    });
+    
+    // Load data
+    loadCategories();
+    loadVideos();
+});
+
+function showUploadModal() {
+    document.getElementById('uploadVideoModal').style.display = 'flex';
+}
+
+function hideUploadModal() {
+    if (currentXHR) {
+        currentXHR.abort();
+        currentXHR = null;
+    }
+    document.getElementById('uploadVideoModal').style.display = 'none';
+    document.getElementById('uploadVideoForm').reset();
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('progressBar').style.width = '0%';
+}
+
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.querySelector('select[name="category_id"]');
+            select.innerHTML = '<option value="">Select Category</option>' + 
+                data.data.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        }
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+    }
+}
+
+async function loadVideos() {
+    try {
+        console.log('Loading videos from /api/admin/videos...');
+        
+        const response = await fetch('/api/admin/videos');
+        console.log('Videos response status:', response.status);
+        console.log('Videos response content-type:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Videos response error:', errorText.substring(0, 300));
+            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const responseText = await response.text();
+            console.error('Videos non-JSON response:', responseText.substring(0, 300));
+            throw new Error('Server returned non-JSON response');
+        }
+        
+        const data = await response.json();
+        console.log('Videos data:', data);
+        
+        const videosDiv = document.getElementById('videosList');
+        
+        if (data.success && data.data && data.data.length > 0) {
+            videosDiv.innerHTML = data.data.map(video => `
+                <div style="border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <h4 style="margin-bottom: 5px;">${video.title}</h4>
+                            <p style="color: #7f8c8d; margin: 5px 0;">${video.description || 'No description'}</p>
+                            <div style="display: flex; gap: 15px; margin-top: 10px;">
+                                <small style="color: #999;">Status: <span style="color: ${getStatusColor(video.status)}">${video.status}</span></small>
+                                <small style="color: #999;">Views: ${video.views_count || 0}</small>
+                                <small style="color: #999;">Quality: ${video.video_quality}</small>
+                                ${video.category_name ? `<small style="color: #999;">Category: ${video.category_name}</small>` : ''}
+                            </div>
+                            <small style="color: #999;">Created: ${new Date(video.created_at).toLocaleDateString()}</small>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary edit-btn" data-id="${video.id}" style="padding: 5px 10px; font-size: 12px;">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger delete-btn" data-id="${video.id}" style="padding: 5px 10px; font-size: 12px;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ${video.video_url ? `
+                        <div style="margin-top: 15px;">
+                            <video controls style="width: 100%; max-width: 300px; height: 200px; object-fit: cover;">
+                                <source src="${video.video_url}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            // Add event listeners for buttons
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    deleteVideo(this.dataset.id);
+                });
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    editVideo(this.dataset.id);
+                });
+            });
+            
+        } else {
+            videosDiv.innerHTML = `
+                <div style="text-align: center; padding: 50px; color: #7f8c8d;">
+                    <i class="fas fa-video" style="font-size: 64px; margin-bottom: 20px; color: #bdc3c7;"></i>
+                    <h3>No Videos Yet</h3>
+                    <p>Upload your first video to get started</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Load videos error:', error);
+        document.getElementById('videosList').innerHTML = `
+            <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 64px; margin-bottom: 20px;"></i>
+                <h3>Failed to Load Videos</h3>
+                <p>Error: ${error.message}</p>
+                <button id="retryVideosBtn" style="margin-top: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+            </div>
+        `;
+        
+        document.getElementById('retryVideosBtn')?.addEventListener('click', loadVideos);
+    }
+}
+
+function getStatusColor(status) {
+    switch(status) {
+        case 'published': return '#27ae60';
+        case 'draft': return '#f39c12';
+        case 'private': return '#e74c3c';
+        default: return '#7f8c8d';
+    }
+}
+
+async function handleVideoUpload(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const fileInput = document.querySelector('input[name="video"]');
+    const file = fileInput.files[0];
+    
+    // Validate file
+    if (!file) {
+        alert('Please select a video file');
+        return;
+    }
+    
+    // Check file size (500MB max)
+    const maxSize = 500 * 1024 * 1024; // 500MB
+    if (file.size > maxSize) {
+        alert('File size exceeds 500MB limit');
+        return;
+    }
+    
+    // Check file type
+    const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/x-flv'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Please select a valid video file (MP4, AVI, MOV, WMV, FLV)');
+        return;
+    }
+    
+    // Show progress
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('submitUploadBtn').disabled = true;
+    
+    try {
+        currentXHR = new XMLHttpRequest();
+        
+        // Progress tracking
+        currentXHR.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                document.getElementById('progressBar').style.width = percentComplete + '%';
+                document.getElementById('progressText').textContent = 
+                    `Uploading... ${Math.round(percentComplete)}%`;
+            }
+        });
+        
+        // Success handler
+        currentXHR.addEventListener('load', function() {
+            if (currentXHR.status === 200) {
+                const result = JSON.parse(currentXHR.responseText);
+                if (result.success) {
+                    alert('Video uploaded successfully!');
+                    hideUploadModal();
+                    loadVideos();
+                } else {
+                    alert('Upload failed: ' + result.message);
+                }
+            } else {
+                alert('Upload failed: HTTP ' + currentXHR.status);
+            }
+            document.getElementById('submitUploadBtn').disabled = false;
+        });
+        
+        // Error handler
+        currentXHR.addEventListener('error', function() {
+            alert('Upload failed: Network error');
+            document.getElementById('submitUploadBtn').disabled = false;
+        });
+        
+        // Send request
+        currentXHR.open('POST', '/api/admin/videos/upload');
+        currentXHR.send(formData);
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('Upload failed: ' + error.message);
+        document.getElementById('submitUploadBtn').disabled = false;
+        document.getElementById('uploadProgress').style.display = 'none';
+    }
+}
+
+async function deleteVideo(id) {
+    if (!confirm('Are you sure you want to delete this video?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/videos/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Video deleted successfully!');
+            loadVideos();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (error) {
+        alert('Failed to delete video');
+    }
+}
+
+function editVideo(id) {
+    alert('Edit functionality coming soon!');
+}
+</script>

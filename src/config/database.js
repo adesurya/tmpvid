@@ -13,7 +13,10 @@ const dbConfig = {
     queueLimit: 0,
     acquireTimeout: 60000,
     timeout: 60000,
-    multipleStatements: true
+    multipleStatements: true,
+    // Disable prepared statements untuk menghindari error
+    namedPlaceholders: false,
+    execute: false
 };
 
 // Create connection pool
@@ -52,13 +55,19 @@ const initDatabase = async () => {
     }
 };
 
-// Execute query with error handling
+// Execute query with error handling - GUNAKAN query() alih-alih execute()
 const query = async (sql, params = []) => {
     try {
-        const [results] = await pool.execute(sql, params);
+        console.log('Executing SQL:', sql.replace(/\s+/g, ' ').trim());
+        console.log('With params:', params);
+        
+        // Gunakan query() alih-alih execute() untuk menghindari prepared statement issues
+        const [results] = await pool.query(sql, params);
         return results;
     } catch (error) {
         console.error('Database query error:', error);
+        console.error('SQL was:', sql);
+        console.error('Params were:', params);
         throw error;
     }
 };
@@ -66,7 +75,7 @@ const query = async (sql, params = []) => {
 // Get single record
 const queryOne = async (sql, params = []) => {
     try {
-        const [results] = await pool.execute(sql, params);
+        const [results] = await pool.query(sql, params);
         return results[0] || null;
     } catch (error) {
         console.error('Database query error:', error);

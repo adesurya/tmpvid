@@ -8,16 +8,18 @@ const categoryRoutes = require('./categories');
 const seriesRoutes = require('./series');
 const adminRoutes = require('./admin');
 
-// Video routes
+// Debug middleware
+router.use((req, res, next) => {
+    console.log(`API Request: ${req.method} ${req.originalUrl}`);
+    next();
+});
+
+// Public API routes
 router.use('/videos', videoRoutes);
-
-// Category routes
 router.use('/categories', categoryRoutes);
-
-// Series routes
 router.use('/series', seriesRoutes);
 
-// Admin routes
+// Admin API routes
 router.use('/admin', adminRoutes);
 
 // Health check endpoint
@@ -26,6 +28,14 @@ router.get('/health', (req, res) => {
         success: true,
         message: 'API is running',
         timestamp: new Date().toISOString()
+    });
+});
+
+// 404 handler for API routes
+router.use('*', (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'API endpoint not found'
     });
 });
 

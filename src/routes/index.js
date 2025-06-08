@@ -6,10 +6,10 @@ const router = express.Router();
 const webRoutes = require('./web');
 const apiRoutes = require('./api');
 
+// API routes HARUS SEBELUM web routes
+router.use('/api', apiRoutes);
+
 // Web routes (for rendering pages)
 router.use('/', webRoutes);
-
-// API routes
-router.use('/api', apiRoutes);
 
 module.exports = router;

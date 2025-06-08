@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "description": "TikTok-like video platform with admin dashboard",
   "main": "app.js",
+
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "seed": "node database/seed.js"
+    "seed": "node database/seed.js",
+    "reset-admin": "node database/seed.js"
   },
   "dependencies": {
     "aws-sdk": "^2.1479.0",
@@ -41,8 +43,12 @@
     "streaming",
     "tiktok",
     "nodejs",
-    "express"
+    "express",
+    "mysql"
   ],
   "author": "Your Name",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }

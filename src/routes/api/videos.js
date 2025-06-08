@@ -14,5 +14,6 @@ router.get('/:slug', VideoController.getVideo);
 // Protected routes (require authentication)
 router.post('/:id/like', optionalAuth, VideoController.toggleLike);
 router.post('/:id/share', optionalAuth, VideoController.share);
+router.post('/:id/view', optionalAuth, VideoController.recordView);
 
 module.exports = router;

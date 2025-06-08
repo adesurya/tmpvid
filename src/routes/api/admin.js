@@ -8,6 +8,12 @@ const AdminController = require('../../controllers/adminController');
 const { adminAuth } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
+// Add debug middleware
+router.use((req, res, next) => {
+    console.log(`Admin API - ${req.method} ${req.path}`);
+    next();
+});
+
 // Apply admin authentication to all routes
 router.use(adminAuth);
 
@@ -17,22 +23,10 @@ router.get('/dashboard/stats', AdminController.getDashboardStats);
 // Video management
 router.get('/videos', VideoController.getAdminList);
 router.get('/videos/:id', VideoController.getVideo);
-router.post('/videos/upload', upload.single('video'), VideoController.upload);
+router.post('/videos/upload', upload.single('video'), upload.handleUploadError, VideoController.upload);
 router.put('/videos/:id', VideoController.update);
 router.delete('/videos/:id', VideoController.delete);
 router.get('/videos/:id/analytics', VideoController.getAnalytics);
-
-// Category management
-router.get('/categories', CategoryController.getAll);
-router.post('/categories', CategoryController.create);
-router.put('/categories/:id', CategoryController.update);
-router.delete('/categories/:id', CategoryController.delete);
-
-// Series management
-router.get('/series', SeriesController.getAll);
-router.post('/series', SeriesController.create);
-router.put('/series/:id', SeriesController.update);
-router.delete('/series/:id', SeriesController.delete);
 
 // User management
 router.get('/users', AdminController.getUsers);
@@ -48,5 +42,11 @@ router.get('/analytics/users', AdminController.getUserAnalytics);
 // Settings
 router.get('/settings', AdminController.getSettings);
 router.put('/settings', AdminController.updateSettings);
+
+router.post('/videos/upload', 
+    upload.single('video'), 
+    upload.handleUploadError, 
+    VideoController.upload
+);
 
 module.exports = router;

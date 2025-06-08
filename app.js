@@ -23,10 +23,13 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-hashes'", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:"],
-            mediaSrc: ["'self'", "https:"],
-            connectSrc: ["'self'"]
+            mediaSrc: ["'self'", "https:", "blob:", "data:"],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+            objectSrc: ["'none'"],
+            frameSrc: ["'none'"],
         }
     }
 }));
