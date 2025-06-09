@@ -1,3 +1,4 @@
+// app.js - Fixed version with proper CSP handling
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -15,7 +16,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-
 // Import routes
 const routes = require('./src/routes');
 
@@ -26,19 +26,21 @@ initDatabase().then(() => {
     // Don't exit the process, continue without database
 });
 
-// Security middleware
+// Security middleware - FIXED CSP settings
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-hashes'", "https://cdnjs.cloudflare.com"],
-            imgSrc: ["'self'", "data:", "https:"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
             mediaSrc: ["'self'", "https:", "blob:", "data:"],
             connectSrc: ["'self'"],
             fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
             objectSrc: ["'none'"],
-            frameSrc: ["'none'"],
+            frameSrc: ["'self'"],
+            workerSrc: ["'self'", "blob:"],
+            manifestSrc: ["'self'"]
         }
     }
 }));
@@ -87,6 +89,7 @@ app.use((req, res, next) => {
     res.locals.error_msg = req.flash('error_msg');
     res.locals.error = req.flash('error');
     res.locals.user = req.session.user || null;
+    res.locals.req = req; // Add req to locals for meta tags
     next();
 });
 

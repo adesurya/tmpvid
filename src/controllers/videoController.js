@@ -1,3 +1,4 @@
+// FIXED: Complete videoController.js with proper database integration
 
 const Video = require('../models/Video');
 const Category = require('../models/Category');
@@ -15,6 +16,16 @@ const videoSchema = Joi.object({
 });
 
 class VideoController {
+    // Initialize video tables on startup
+    static async initialize() {
+        try {
+            await Video.initializeTables();
+            console.log('Video controller initialized with database tables');
+        } catch (error) {
+            console.error('Failed to initialize video controller:', error);
+        }
+    }
+
     // Get video feed (for main page)
     static async getFeed(req, res) {
         try {
@@ -22,10 +33,7 @@ class VideoController {
             const limit = parseInt(req.query.limit) || 10;
             
             console.log('getFeed - requesting videos with limit:', limit);
-            console.log('getFeed - request path:', req.originalUrl);
-            console.log('getFeed - content-type requested:', req.headers.accept);
             
-            // Try to get videos
             let videos;
             try {
                 videos = await Video.getRandomVideos(limit);
@@ -36,9 +44,8 @@ class VideoController {
             
             console.log('getFeed - got videos count:', videos.length);
             
-            // ALWAYS return JSON for API requests (starts with /api/)
+            // ALWAYS return JSON for API requests
             if (req.originalUrl.startsWith('/api/')) {
-                console.log('getFeed - returning JSON for API request');
                 return res.json({
                     success: true,
                     data: videos || [],
@@ -53,7 +60,6 @@ class VideoController {
             
             // Return JSON for AJAX requests
             if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-                console.log('getFeed - returning JSON for AJAX request');
                 return res.json({
                     success: true,
                     data: videos || [],
@@ -61,8 +67,7 @@ class VideoController {
                 });
             }
             
-            // Only render HTML for direct browser requests
-            console.log('getFeed - rendering HTML for browser request');
+            // Render HTML for browser requests
             res.render('index', {
                 title: 'Video Platform',
                 videos: videos || [],
@@ -73,17 +78,14 @@ class VideoController {
         } catch (error) {
             console.error('Get feed error:', error);
             
-            // ALWAYS return JSON for API requests
             if (req.originalUrl.startsWith('/api/') || req.xhr || req.headers.accept.indexOf('json') > -1) {
                 return res.status(500).json({
                     success: false,
                     message: 'Failed to load videos: ' + error.message,
-                    data: [],
-                    error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                    data: []
                 });
             }
             
-            // Render error page for browser requests
             res.render('index', {
                 title: 'Video Platform',
                 videos: [],
@@ -97,9 +99,14 @@ class VideoController {
     static async getVideo(req, res) {
         try {
             const { slug } = req.params;
-            console.log('Getting video with slug:', slug);
+            const userId = req.session?.user?.id || req.user?.id || null;
             
-            const video = await Video.findBySlug(slug);
+            console.log('Getting video with slug:', slug, 'for user:', userId);
+            
+            // Get video with user status if logged in
+            const video = userId ? 
+                await Video.findBySlugWithUserStatus(slug, userId) : 
+                await Video.findBySlug(slug);
             
             if (!video) {
                 return res.status(404).render('404', {
@@ -109,15 +116,15 @@ class VideoController {
                 });
             }
             
-            // Increment view count
-            const userId = req.session.user ? req.session.user.id : null;
+            // Record view with detailed tracking
             const ipAddress = req.ip || req.connection.remoteAddress;
             const userAgent = req.get('User-Agent');
             
             try {
                 await Video.incrementViews(video.id, userId, ipAddress, userAgent);
+                console.log(`View recorded for video ${video.id}`);
             } catch (error) {
-                console.log('Failed to increment views:', error);
+                console.error('Failed to increment views:', error);
             }
             
             // Get related videos
@@ -154,97 +161,130 @@ class VideoController {
         }
     }
 
-    // Get embed video (for sharing and social media)
-    static async getEmbedVideo(req, res) {
+    // FIXED: Toggle like with proper database storage
+    static async toggleLike(req, res) {
         try {
-            const { slug } = req.params;
-            console.log('Getting embed video for slug:', slug);
+            const { id } = req.params;
+            const userId = req.session?.user?.id || req.user?.id || null;
             
-            const video = await Video.findBySlug(slug);
+            console.log('Toggle like for video:', id, 'user:', userId);
             
-            if (!video) {
-                return res.status(404).send(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head><title>Video Not Found</title></head>
-                    <body style="background: #000; color: #fff; text-align: center; padding: 50px;">
-                        <h1>Video Not Found</h1>
-                        <p>The video you are looking for does not exist.</p>
-                    </body>
-                    </html>
-                `);
+            if (!userId) {
+                // Guest mode - return success but indicate login required
+                return res.status(200).json({
+                    success: true,
+                    requiresLogin: true,
+                    message: 'Like recorded locally (login to save permanently)',
+                    data: {
+                        liked: true,
+                        action: 'guest_liked'
+                    }
+                });
             }
             
-            // Record view for embed
-            const userId = req.session.user ? req.session.user.id : null;
-            const ipAddress = req.ip || req.connection.remoteAddress;
-            const userAgent = req.get('User-Agent');
+            // Authenticated user - save to database
+            const result = await Video.toggleLike(parseInt(id), userId);
             
-            try {
-                await Video.incrementViews(video.id, userId, ipAddress, userAgent, 0);
-            } catch (error) {
-                console.log('Failed to record embed view:', error);
-            }
+            console.log(`Like toggle result for video ${id}:`, result);
             
-            // Return inline HTML for embed
-            res.send(`
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${video.title} - VideoApp</title>
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { background: #000; font-family: Arial, sans-serif; overflow: hidden; }
-                        .embed-container { position: relative; width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
-                        .embed-video { width: 100%; height: 100%; object-fit: contain; }
-                        .embed-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 20px; color: white; transition: opacity 0.5s; }
-                        .embed-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-                        .embed-meta { font-size: 14px; opacity: 0.8; }
-                        .embed-branding { position: absolute; top: 10px; right: 10px; background: rgba(254, 44, 85, 0.9); color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: 600; text-decoration: none; }
-                        .embed-branding:hover { background: rgba(254, 44, 85, 1); }
-                    </style>
-                </head>
-                <body>
-                    <div class="embed-container">
-                        <video class="embed-video" src="${video.video_url}" controls autoplay muted playsinline ${video.thumbnail ? `poster="${video.thumbnail}"` : ''}></video>
-                        <div class="embed-overlay" id="overlay">
-                            <div class="embed-title">${video.title}</div>
-                            <div class="embed-meta">${video.views_count || 0} views${video.username ? ` • @${video.username}` : ''}</div>
-                        </div>
-                        <a href="/video/${video.slug}" target="_blank" class="embed-branding">VideoApp</a>
-                    </div>
-                    <script>
-                        fetch('/api/videos/${video.id}/view', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watchDuration: 0, source: 'embed' }) }).catch(err => console.log('Failed to track embed view'));
-                        setTimeout(() => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '0'; }, 3000);
-                        document.addEventListener('mouseover', () => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '1'; });
-                        document.addEventListener('mouseout', () => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '0'; });
-                    </script>
-                </body>
-                </html>
-            `);
+            res.json({
+                success: true,
+                data: result,
+                message: result.liked ? 'Video liked!' : 'Video unliked!'
+            });
         } catch (error) {
-            console.error('Get embed video error:', error);
-            res.status(500).send(`
-                <!DOCTYPE html>
-                <html>
-                <head><title>Server Error</title></head>
-                <body style="background: #000; color: #fff; text-align: center; padding: 50px;">
-                    <h1>Server Error</h1>
-                    <p>Failed to load video</p>
-                </body>
-                </html>
-            `);
+            console.error('Toggle like error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to toggle like: ' + error.message
+            });
         }
     }
 
-    // Search videos
+    // FIXED: Record view with proper database storage
+    static async recordView(req, res) {
+        try {
+            const { id } = req.params;
+            const { watchDuration = 0, source = 'web' } = req.body;
+            const userId = req.session?.user?.id || req.user?.id || null;
+            const ipAddress = req.ip || req.connection.remoteAddress;
+            const userAgent = req.get('User-Agent');
+            
+            console.log(`Recording view for video ${id}, duration: ${watchDuration}s, source: ${source}, user: ${userId}`);
+            
+            // Record view (count as view if watched for at least 2 seconds or from embed)
+            if (watchDuration >= 2 || source === 'embed') {
+                const success = await Video.incrementViews(
+                    parseInt(id), 
+                    userId, 
+                    ipAddress, 
+                    userAgent, 
+                    parseInt(watchDuration)
+                );
+                
+                if (success) {
+                    console.log(`View successfully recorded for video ${id}`);
+                } else {
+                    console.warn(`View recording failed for video ${id}`);
+                }
+            }
+            
+            res.json({
+                success: true,
+                message: 'View recorded successfully'
+            });
+        } catch (error) {
+            console.error('Record view error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to record view: ' + error.message
+            });
+        }
+    }
+
+    // FIXED: Share video with proper database storage
+    static async share(req, res) {
+        try {
+            const { id } = req.params;
+            const { platform = 'unknown' } = req.body;
+            const userId = req.session?.user?.id || req.user?.id || null;
+            
+            console.log('Share video:', id, 'platform:', platform, 'user:', userId);
+            
+            const success = await Video.recordShare(parseInt(id), userId, platform);
+            
+            if (success) {
+                console.log(`Share successfully recorded for video ${id} on ${platform}`);
+            } else {
+                console.warn(`Share recording failed for video ${id}`);
+            }
+            
+            res.json({
+                success: true,
+                message: 'Share recorded successfully'
+            });
+        } catch (error) {
+            console.error('Share video error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to record share: ' + error.message
+            });
+        }
+    }
+
+    // FIXED: Search videos
     static async search(req, res) {
         try {
             const { q, category, sort, page } = req.query;
             
             if (!q || q.trim().length === 0) {
+                if (req.originalUrl.startsWith('/api/')) {
+                    return res.json({
+                        success: false,
+                        message: 'Search query is required',
+                        data: []
+                    });
+                }
                 return res.redirect('/');
             }
             
@@ -255,14 +295,17 @@ class VideoController {
                 sortBy: sort || 'relevance'
             };
             
+            console.log('Searching for:', q.trim(), 'with options:', searchOptions);
+            
             const result = await Video.search(q.trim(), searchOptions);
             const categories = await Category.getAll();
             
-            if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+            if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
                 return res.json({
                     success: true,
                     data: result.data,
-                    pagination: result.pagination
+                    pagination: result.pagination,
+                    searchQuery: q.trim()
                 });
             }
             
@@ -278,6 +321,15 @@ class VideoController {
             });
         } catch (error) {
             console.error('Search error:', error);
+            
+            if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Search failed: ' + error.message,
+                    data: []
+                });
+            }
+            
             res.status(500).render('error', {
                 title: 'Search Error',
                 message: 'Failed to search videos',
@@ -286,15 +338,27 @@ class VideoController {
         }
     }
 
-    // Get trending videos
+    // FIXED: Get trending videos
     static async getTrending(req, res) {
         try {
             const timeFrame = req.query.timeFrame || '7';
             const limit = parseInt(req.query.limit) || 20;
             
+            console.log(`Getting trending videos for timeframe: ${timeFrame} days, limit: ${limit}`);
+            
             const videos = await Video.getTrending(limit, timeFrame);
             
-            if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+            // Helper function for number formatting
+            const formatNumber = (num) => {
+                if (num >= 1000000) {
+                    return (num / 1000000).toFixed(1) + 'M';
+                } else if (num >= 1000) {
+                    return (num / 1000).toFixed(1) + 'K';
+                }
+                return num.toString();
+            };
+            
+            if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
                 return res.json({
                     success: true,
                     data: videos
@@ -305,13 +369,24 @@ class VideoController {
                 title: 'Trending Videos',
                 videos: videos,
                 timeFrame: timeFrame,
+                formatNumber: formatNumber,
                 layout: 'layouts/main'
             });
         } catch (error) {
             console.error('Get trending error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to get trending videos'
+            
+            if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to get trending videos: ' + error.message,
+                    data: []
+                });
+            }
+            
+            res.status(500).render('error', {
+                title: 'Trending Error',
+                message: 'Failed to load trending videos',
+                layout: 'layouts/main'
             });
         }
     }
@@ -365,98 +440,95 @@ class VideoController {
         }
     }
 
-    // Toggle like
-static async toggleLike(req, res) {
-    try {
-        const { id } = req.params;
-        const userId = req.session?.user?.id || req.user?.id || null;
-        
-        console.log('Toggle like for video:', id, 'user:', userId);
-        
-        if (!userId) {
-            // Create a guest like system or require login
-            return res.status(200).json({
-                success: false,
-                message: 'Please login to like videos',
-                requiresLogin: true
-            });
+    // Get embed video (for sharing and social media)
+    static async getEmbedVideo(req, res) {
+        try {
+            const { slug } = req.params;
+            console.log('Getting embed video for slug:', slug);
+            
+            const video = await Video.findBySlug(slug);
+            
+            if (!video) {
+                return res.status(404).send(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>Video Not Found</title></head>
+                    <body style="background: #000; color: #fff; text-align: center; padding: 50px;">
+                        <h1>Video Not Found</h1>
+                        <p>The video you are looking for does not exist.</p>
+                    </body>
+                    </html>
+                `);
+            }
+            
+            // Record view for embed
+            const userId = req.session?.user?.id || null;
+            const ipAddress = req.ip || req.connection.remoteAddress;
+            const userAgent = req.get('User-Agent');
+            
+            try {
+                await Video.incrementViews(video.id, userId, ipAddress, userAgent, 0);
+            } catch (error) {
+                console.log('Failed to record embed view:', error);
+            }
+            
+            // Return inline HTML for embed
+            res.send(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${video.title} - VideoApp</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { background: #000; font-family: Arial, sans-serif; overflow: hidden; }
+                        .embed-container { position: relative; width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
+                        .embed-video { width: 100%; height: 100%; object-fit: contain; }
+                        .embed-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 20px; color: white; transition: opacity 0.5s; }
+                        .embed-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+                        .embed-meta { font-size: 14px; opacity: 0.8; }
+                        .embed-branding { position: absolute; top: 10px; right: 10px; background: rgba(254, 44, 85, 0.9); color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: 600; text-decoration: none; }
+                        .embed-branding:hover { background: rgba(254, 44, 85, 1); }
+                    </style>
+                </head>
+                <body>
+                    <div class="embed-container">
+                        <video class="embed-video" src="${video.video_url}" controls autoplay muted playsinline ${video.thumbnail ? `poster="${video.thumbnail}"` : ''}></video>
+                        <div class="embed-overlay" id="overlay">
+                            <div class="embed-title">${video.title}</div>
+                            <div class="embed-meta">${video.views_count || 0} views${video.username ? ` • @${video.username}` : ''}</div>
+                        </div>
+                        <a href="/video/${video.slug}" target="_blank" class="embed-branding">VideoApp</a>
+                    </div>
+                    <script>
+                        setTimeout(() => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '0'; }, 3000);
+                        document.addEventListener('mouseover', () => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '1'; });
+                        document.addEventListener('mouseout', () => { const overlay = document.getElementById('overlay'); if (overlay) overlay.style.opacity = '0'; });
+                    </script>
+                </body>
+                </html>
+            `);
+        } catch (error) {
+            console.error('Get embed video error:', error);
+            res.status(500).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Server Error</title></head>
+                <body style="background: #000; color: #fff; text-align: center; padding: 50px;">
+                    <h1>Server Error</h1>
+                    <p>Failed to load video</p>
+                </body>
+                </html>
+            `);
         }
-        
-        const result = await Video.toggleLike(parseInt(id), userId);
-        
-        res.json({
-            success: true,
-            data: result
-        });
-    } catch (error) {
-        console.error('Toggle like error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to toggle like'
-        });
     }
-}
-
-    // Share video
-static async share(req, res) {
-    try {
-        const { id } = req.params;
-        const { platform } = req.body;
-        const userId = req.session?.user?.id || req.user?.id || null;
-        
-        console.log('Share video:', id, 'platform:', platform, 'user:', userId);
-        
-        await Video.recordShare(parseInt(id), userId, platform);
-        
-        res.json({
-            success: true,
-            message: 'Share recorded successfully'
-        });
-    } catch (error) {
-        console.error('Share video error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to record share'
-        });
-    }
-}
-
-    // Record video view
-    static async recordView(req, res) {
-    try {
-        const { id } = req.params;
-        const { watchDuration = 0, source = 'web' } = req.body;
-        const userId = req.session?.user?.id || req.user?.id || null;
-        const ipAddress = req.ip || req.connection.remoteAddress;
-        const userAgent = req.get('User-Agent');
-        
-        console.log(`Recording view for video ${id}, duration: ${watchDuration}s, source: ${source}, user: ${userId}`);
-        
-        // Record view (count as view if watched for at least 3 seconds or from embed)
-        if (watchDuration >= 3 || source === 'embed') {
-            await Video.incrementViews(parseInt(id), userId, ipAddress, userAgent, watchDuration);
-        }
-        
-        res.json({
-            success: true,
-            message: 'View recorded successfully'
-        });
-    } catch (error) {
-        console.error('Record view error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to record view'
-        });
-    }
-}
 
     // Upload video (Admin)
     static async upload(req, res) {
         try {
             console.log('Upload request received');
-            console.log('Body:', req.body);
-            console.log('File:', req.file);
-
+            
             // Validate form data
             const { error, value } = videoSchema.validate(req.body);
             if (error) {
@@ -709,5 +781,8 @@ static async share(req, res) {
         }
     }
 }
+
+// Initialize video controller
+VideoController.initialize().catch(console.error);
 
 module.exports = VideoController;

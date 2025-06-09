@@ -57,7 +57,7 @@ const adminAuth = async (req, res, next) => {
     }
 };
 
-// Optional authentication (doesn't require login) - FIXED
+// FIXED: Optional authentication that properly continues without auth
 const optionalAuth = async (req, res, next) => {
     try {
         // Check session first
@@ -84,12 +84,12 @@ const optionalAuth = async (req, res, next) => {
             }
         }
 
-        // Continue without authentication (this is the key fix)
+        // ALWAYS continue without authentication (this is the key fix)
         console.log('OptionalAuth - Continuing without authentication');
         next();
     } catch (error) {
         console.log('OptionalAuth - Error occurred, continuing without auth:', error.message);
-        // Continue without authentication even if there's an error
+        // ALWAYS continue without authentication even if there's an error
         next();
     }
 };

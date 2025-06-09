@@ -1,3 +1,4 @@
+// FIXED: Enhanced database.js with auto-initialization
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
@@ -48,6 +49,9 @@ const initDatabase = async () => {
         
         // Create tables
         await createTables();
+        
+        // FIXED: Initialize video interaction tables
+        await createVideoInteractionTables();
         
     } catch (error) {
         console.error('❌ Database initialization failed:', error.message);
@@ -122,8 +126,26 @@ const createTables = async () => {
             INDEX idx_videos_created (created_at),
             INDEX idx_videos_views (views_count),
             INDEX idx_videos_likes (likes_count)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+    ];
 
+    try {
+        for (const tableSQL of tables) {
+            await pool.execute(tableSQL);
+        }
+        console.log('✅ Core database tables created successfully');
+        
+        // Insert default data
+        await insertDefaultData();
+        
+    } catch (error) {
+        console.error('❌ Failed to create core tables:', error.message);
+    }
+};
+
+// FIXED: Create video interaction tables (likes, views, shares)
+const createVideoInteractionTables = async () => {
+    const interactionTables = [
         // Video views table
         `CREATE TABLE IF NOT EXISTS video_views (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -137,7 +159,9 @@ const createTables = async () => {
             FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
             INDEX idx_video_views_video_id (video_id),
-            INDEX idx_video_views_created_at (created_at)
+            INDEX idx_video_views_created_at (created_at),
+            INDEX idx_video_views_user_id (user_id),
+            INDEX idx_video_views_ip (ip_address)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
         // Video likes table
@@ -150,7 +174,8 @@ const createTables = async () => {
             FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             INDEX idx_video_likes_video_id (video_id),
-            INDEX idx_video_likes_user_id (user_id)
+            INDEX idx_video_likes_user_id (user_id),
+            INDEX idx_video_likes_created_at (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
         // Video shares table
@@ -166,21 +191,19 @@ const createTables = async () => {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
             INDEX idx_video_shares_video_id (video_id),
             INDEX idx_video_shares_platform (platform),
-            INDEX idx_video_shares_created_at (created_at)
+            INDEX idx_video_shares_created_at (created_at),
+            INDEX idx_video_shares_user_id (user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
     ];
 
     try {
-        for (const tableSQL of tables) {
+        for (const tableSQL of interactionTables) {
             await pool.execute(tableSQL);
         }
-        console.log('✅ All database tables created successfully');
-        
-        // Insert default data
-        await insertDefaultData();
-        
+        console.log('✅ Video interaction tables created successfully');
     } catch (error) {
-        console.error('❌ Failed to create tables:', error.message);
+        console.error('❌ Failed to create interaction tables:', error.message);
+        // Don't throw error, continue without interaction tables
     }
 };
 
@@ -230,7 +253,7 @@ const insertDefaultData = async () => {
 // Execute query with error handling
 const query = async (sql, params = []) => {
     try {
-        console.log('Executing SQL:', sql.replace(/\s+/g, ' ').trim());
+        console.log('Executing SQL:', sql.replace(/\s+/g, ' ').trim().substring(0, 100) + '...');
         if (params.length > 0) {
             console.log('With params:', params);
         }
@@ -239,7 +262,7 @@ const query = async (sql, params = []) => {
         return results;
     } catch (error) {
         console.error('Database query error:', error);
-        console.error('SQL was:', sql);
+        console.error('SQL was:', sql.substring(0, 200) + '...');
         console.error('Params were:', params);
         throw error;
     }
@@ -312,6 +335,16 @@ const dbUtils = {
                 hasPrev: page > 1
             }
         };
+    },
+
+    // FIXED: Ensure video interaction tables exist
+    async ensureVideoTables() {
+        try {
+            await createVideoInteractionTables();
+            console.log('✅ Video interaction tables verified');
+        } catch (error) {
+            console.error('❌ Failed to verify video tables:', error);
+        }
     }
 };
 
@@ -323,5 +356,6 @@ module.exports = {
     initDatabase,
     testConnection,
     createTables,
+    createVideoInteractionTables,
     dbUtils
 };

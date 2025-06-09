@@ -25,8 +25,21 @@ class Video {
         this.updated_at = data.updated_at;
     }
 
-    // Create new video
-    static async create(videoData) {
+static async initializeTables() {
+    try {
+        await Promise.all([
+            this.ensureViewTablesExist(),
+            this.ensureLikeTablesExist(),
+            this.ensureShareTablesExist()
+        ]);
+        console.log('All video interaction tables initialized');
+    } catch (error) {
+        console.error('Error initializing video tables:', error);
+    }
+}
+
+// Create new video
+static async create(videoData) {
         try {
             // Generate slug
             const slug = await this.generateUniqueSlug(videoData.title);
@@ -63,8 +76,8 @@ class Video {
         }
     }
 
-    // Find video by ID
-    static async findById(id) {
+// Find video by ID
+static async findById(id) {
         try {
             const sql = `
                 SELECT v.*, 
@@ -86,8 +99,8 @@ class Video {
         }
     }
 
-    // Find video by slug
-    static async findBySlug(slug) {
+// Find video by slug
+static async findBySlug(slug) {
         try {
             const sql = `
                 SELECT v.*, 
@@ -232,91 +245,278 @@ static getDemoVideos(limit = 10) {
 }
         
 
-    // Search videos
-    static async search(searchTerm, options = {}) {
-        try {
-            const { page = 1, limit = 20, category = null, sortBy = 'relevance' } = options;
-            
-            let sql = `
-                SELECT v.*, 
-                       c.name as category_name,
-                       u.username,
-                       MATCH(v.title, v.description) AGAINST(? IN NATURAL LANGUAGE MODE) as relevance_score
-                FROM videos v
-                LEFT JOIN categories c ON v.category_id = c.id
-                LEFT JOIN users u ON v.user_id = u.id
-                WHERE v.status = 'published'
-                AND (v.title LIKE ? OR v.description LIKE ? OR MATCH(v.title, v.description) AGAINST(? IN NATURAL LANGUAGE MODE))
-            `;
-            
-            const params = [
-                searchTerm,
-                `%${searchTerm}%`,
-                `%${searchTerm}%`,
-                searchTerm
-            ];
-            
-            if (category) {
-                sql += ' AND v.category_id = ?';
-                params.push(category);
-            }
-            
-            // Add sorting
-            switch (sortBy) {
-                case 'latest':
-                    sql += ' ORDER BY v.created_at DESC';
-                    break;
-                case 'popular':
-                    sql += ' ORDER BY v.views_count DESC';
-                    break;
-                case 'engagement':
-                    sql += ' ORDER BY (v.views_count + v.likes_count + v.shares_count) DESC';
-                    break;
-                default:
-                    sql += ' ORDER BY relevance_score DESC, v.views_count DESC';
-            }
-            
-            const result = await dbUtils.paginate(sql, params, page, limit);
-            result.data = result.data.map(video => new Video(video));
-            
-            return result;
-        } catch (error) {
-            console.error('Search videos error:', error);
-            throw error;
+// Search videos
+static async search(searchTerm, options = {}) {
+    try {
+        const { page = 1, limit = 20, category = null, sortBy = 'relevance' } = options;
+        
+        let sql = `
+            SELECT v.*, 
+                   c.name as category_name,
+                   u.username
+            FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE v.status = 'published'
+            AND (v.title LIKE ? OR v.description LIKE ?)
+        `;
+        
+        const params = [
+            `%${searchTerm}%`,
+            `%${searchTerm}%`
+        ];
+        
+        if (category) {
+            sql += ' AND v.category_id = ?';
+            params.push(category);
         }
+        
+        // Add sorting
+        switch (sortBy) {
+            case 'latest':
+                sql += ' ORDER BY v.created_at DESC';
+                break;
+            case 'popular':
+                sql += ' ORDER BY v.views_count DESC';
+                break;
+            case 'engagement':
+                sql += ' ORDER BY (v.views_count + v.likes_count + v.shares_count) DESC';
+                break;
+            default:
+                sql += ' ORDER BY v.views_count DESC, v.created_at DESC';
+        }
+        
+        // Pagination
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        sql += ` LIMIT ? OFFSET ?`;
+        params.push(parseInt(limit), offset);
+        
+        // Count query
+        let countSql = `
+            SELECT COUNT(*) as total FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE v.status = 'published'
+            AND (v.title LIKE ? OR v.description LIKE ?)
+        `;
+        
+        const countParams = [`%${searchTerm}%`, `%${searchTerm}%`];
+        
+        if (category) {
+            countSql += ' AND v.category_id = ?';
+            countParams.push(category);
+        }
+        
+        const [results, countResult] = await Promise.all([
+            query(sql, params),
+            query(countSql, countParams)
+        ]);
+        
+        const total = countResult[0]?.total || 0;
+        const totalPages = Math.ceil(total / parseInt(limit));
+        
+        return {
+            data: results.map(video => new Video(video)),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: totalPages,
+                hasNext: parseInt(page) < totalPages,
+                hasPrev: parseInt(page) > 1
+            }
+        };
+    } catch (error) {
+        console.error('Search videos error:', error);
+        return {
+            data: [],
+            pagination: {
+                page: 1,
+                limit: 20,
+                total: 0,
+                totalPages: 0,
+                hasNext: false,
+                hasPrev: false
+            }
+        };
     }
+}
 
-    // Get trending videos
-    static async getTrending(limit = 20, timeFrame = '7') {
+// Get trending videos
+static async getTrending(limit = 20, timeFrame = '7') {
+    try {
+        // Calculate date threshold
+        const daysAgo = parseInt(timeFrame);
+        
+        const sql = `
+            SELECT v.*, 
+                   c.name as category_name,
+                   u.username,
+                   (
+                       SELECT COUNT(*) FROM video_views vv 
+                       WHERE vv.video_id = v.id 
+                       AND vv.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                   ) as recent_views,
+                   (
+                       SELECT COUNT(*) FROM video_likes vl 
+                       WHERE vl.video_id = v.id 
+                       AND vl.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                   ) as recent_likes,
+                   (
+                       SELECT COUNT(*) FROM video_shares vs 
+                       WHERE vs.video_id = v.id 
+                       AND vs.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                   ) as recent_shares,
+                   (
+                       (SELECT COUNT(*) FROM video_views vv WHERE vv.video_id = v.id AND vv.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) * 0.5 +
+                       (SELECT COUNT(*) FROM video_likes vl WHERE vl.video_id = v.id AND vl.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) * 0.3 +
+                       (SELECT COUNT(*) FROM video_shares vs WHERE vs.video_id = v.id AND vs.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) * 0.2 +
+                       (DATEDIFF(NOW(), v.created_at) * -0.1)
+                   ) as trending_score
+            FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE v.status = 'published'
+                AND v.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+            HAVING trending_score > 0
+            ORDER BY trending_score DESC, v.views_count DESC
+            LIMIT ?
+        `;
+        
+        const videos = await query(sql, [daysAgo, daysAgo, daysAgo, daysAgo, Math.min(daysAgo * 2, 60), limit]);
+        return videos.map(video => new Video(video));
+    } catch (error) {
+        console.error('Get trending videos error:', error);
+        
+        // Fallback: return most viewed recent videos
         try {
-            const sql = `
-                SELECT v.*, 
-                       c.name as category_name,
-                       u.username,
-                       COUNT(vv.id) as recent_views,
-                       (COUNT(vv.id) * 0.5 + v.likes_count * 0.3 + v.shares_count * 0.2) as trending_score
+            const fallbackSql = `
+                SELECT v.*, c.name as category_name, u.username
                 FROM videos v
                 LEFT JOIN categories c ON v.category_id = c.id
                 LEFT JOIN users u ON v.user_id = u.id
-                LEFT JOIN video_views vv ON v.id = vv.video_id 
-                    AND vv.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
                 WHERE v.status = 'published'
-                    AND v.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                GROUP BY v.id
-                ORDER BY trending_score DESC, v.created_at DESC
+                    AND v.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                ORDER BY v.views_count DESC, v.created_at DESC
                 LIMIT ?
             `;
             
-            const videos = await query(sql, [timeFrame, limit]);
+            const videos = await query(fallbackSql, [parseInt(timeFrame), limit]);
             return videos.map(video => new Video(video));
-        } catch (error) {
-            console.error('Get trending videos error:', error);
-            throw error;
+        } catch (fallbackError) {
+            console.error('Fallback trending query failed:', fallbackError);
+            return [];
         }
     }
+}
 
-    // Get videos by category
-    static async getByCategory(categoryId, options = {}) {
+// FIXED: Get current like status for user
+static async getUserLikeStatus(videoId, userId) {
+    try {
+        if (!userId) return false;
+        
+        await this.ensureLikeTablesExist();
+        
+        const result = await queryOne(
+            'SELECT id FROM video_likes WHERE video_id = ? AND user_id = ?',
+            [videoId, userId]
+        );
+        
+        return !!result;
+    } catch (error) {
+        console.error('Get user like status error:', error);
+        return false;
+    }
+}
+
+// FIXED: Get video with user interaction status
+static async findBySlugWithUserStatus(slug, userId = null) {
+    try {
+        const video = await this.findBySlug(slug);
+        if (!video || !userId) return video;
+        
+        // Get user's like status
+        const isLiked = await this.getUserLikeStatus(video.id, userId);
+        video.userLiked = isLiked;
+        
+        return video;
+    } catch (error) {
+        console.error('Find video with user status error:', error);
+        return await this.findBySlug(slug);
+    }
+}
+
+// FIXED: Helper methods to ensure tables exist
+static async ensureLikeTablesExist() {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS video_likes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                video_id INT NOT NULL,
+                user_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_video_user_like (video_id, user_id),
+                FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+                INDEX idx_video_likes_video_id (video_id),
+                INDEX idx_video_likes_user_id (user_id),
+                INDEX idx_video_likes_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('Video likes table ensured');
+    } catch (error) {
+        console.error('Error ensuring likes table:', error);
+    }
+}
+
+static async ensureViewTablesExist() {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS video_views (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                video_id INT NOT NULL,
+                user_id INT NULL,
+                ip_address VARCHAR(45) NULL,
+                user_agent TEXT NULL,
+                watch_duration INT DEFAULT 0,
+                source VARCHAR(50) DEFAULT 'web',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+                INDEX idx_video_views_video_id (video_id),
+                INDEX idx_video_views_created_at (created_at),
+                INDEX idx_video_views_user_id (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('Video views table ensured');
+    } catch (error) {
+        console.error('Error ensuring views table:', error);
+    }
+}
+
+static async ensureShareTablesExist() {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS video_shares (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                video_id INT NOT NULL,
+                user_id INT NULL,
+                platform VARCHAR(50) NOT NULL DEFAULT 'unknown',
+                user_agent TEXT NULL,
+                referrer VARCHAR(500) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+                INDEX idx_video_shares_video_id (video_id),
+                INDEX idx_video_shares_platform (platform),
+                INDEX idx_video_shares_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('Video shares table ensured');
+    } catch (error) {
+        console.error('Error ensuring shares table:', error);
+    }
+}
+
+// Get videos by category
+static async getByCategory(categoryId, options = {}) {
         try {
             const { page = 1, limit = 20, sortBy = 'latest' } = options;
             
@@ -353,8 +553,8 @@ static getDemoVideos(limit = 10) {
         }
     }
 
-    // Update video
-    static async update(id, updateData) {
+// Update video
+static async update(id, updateData) {
         try {
             // Generate new slug if title changed
             if (updateData.title) {
@@ -390,8 +590,8 @@ static getDemoVideos(limit = 10) {
         }
     }
 
-    // Delete video
-    static async delete(id) {
+// Delete video
+static async delete(id) {
         try {
             const sql = 'DELETE FROM videos WHERE id = ?';
             const result = await query(sql, [id]);
@@ -405,48 +605,37 @@ static getDemoVideos(limit = 10) {
 // Increment views (FIXED to handle missing tables)
 static async incrementViews(videoId, userId = null, ipAddress = null, userAgent = null, watchDuration = 0) {
     try {
-        // Check if video_views table exists
-        try {
-            await query('SELECT 1 FROM video_views LIMIT 1');
-        } catch (tableError) {
-            console.log('video_views table does not exist, creating...');
-            await query(`
-                CREATE TABLE IF NOT EXISTS video_views (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    video_id INT NOT NULL,
-                    user_id INT NULL,
-                    ip_address VARCHAR(45) NULL,
-                    user_agent TEXT NULL,
-                    watch_duration INT DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
-                )
-            `);
-        }
+        // Ensure tables exist first
+        await this.ensureViewTablesExist();
         
         return await transaction(async (connection) => {
-            // Update video views count
+            // Always update video views count
             await connection.query(
-                'UPDATE videos SET views_count = views_count + 1 WHERE id = ?',
+                'UPDATE videos SET views_count = views_count + 1, updated_at = NOW() WHERE id = ?',
                 [videoId]
             );
             
-            // Log the view
+            // Log the detailed view record
             await connection.query(`
-                INSERT INTO video_views (video_id, user_id, ip_address, user_agent, watch_duration)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO video_views (video_id, user_id, ip_address, user_agent, watch_duration, created_at)
+                VALUES (?, ?, ?, ?, ?, NOW())
             `, [videoId, userId, ipAddress, userAgent, watchDuration]);
+            
+            console.log(`View recorded for video ${videoId}, user: ${userId}, duration: ${watchDuration}s`);
+            
+            return true;
         });
         
-        return true;
     } catch (error) {
         console.error('Increment views error:', error);
-        // Fallback: just update the count
+        
+        // Fallback: at least update the main count
         try {
-            await query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [videoId]);
+            await query('UPDATE videos SET views_count = views_count + 1, updated_at = NOW() WHERE id = ?', [videoId]);
+            console.log(`Fallback view count updated for video ${videoId}`);
             return true;
         } catch (fallbackError) {
-            console.log('View fallback also failed:', fallbackError);
+            console.error('View fallback also failed:', fallbackError);
             return false;
         }
     }
@@ -455,22 +644,8 @@ static async incrementViews(videoId, userId = null, ipAddress = null, userAgent 
 // Toggle like
 static async toggleLike(videoId, userId) {
     try {
-        // First check if video_likes table exists
-        try {
-            await query('SELECT 1 FROM video_likes LIMIT 1');
-        } catch (tableError) {
-            console.log('video_likes table does not exist, creating...');
-            await query(`
-                CREATE TABLE IF NOT EXISTS video_likes (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    video_id INT NOT NULL,
-                    user_id INT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE KEY unique_video_user_like (video_id, user_id),
-                    FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
-                )
-            `);
-        }
+        // Ensure tables exist first
+        await this.ensureLikeTablesExist();
         
         return await transaction(async (connection) => {
             // Check if already liked
@@ -486,61 +661,47 @@ static async toggleLike(videoId, userId) {
                     [videoId, userId]
                 );
                 
+                // Update likes count
                 await connection.query(
-                    'UPDATE videos SET likes_count = GREATEST(likes_count - 1, 0) WHERE id = ?',
+                    'UPDATE videos SET likes_count = GREATEST(likes_count - 1, 0), updated_at = NOW() WHERE id = ?',
                     [videoId]
                 );
+                
+                console.log(`User ${userId} unliked video ${videoId}`);
                 
                 return { liked: false, action: 'unliked' };
             } else {
                 // Add like
                 await connection.query(
-                    'INSERT INTO video_likes (video_id, user_id) VALUES (?, ?)',
+                    'INSERT INTO video_likes (video_id, user_id, created_at) VALUES (?, ?, NOW())',
                     [videoId, userId]
                 );
                 
+                // Update likes count
                 await connection.query(
-                    'UPDATE videos SET likes_count = likes_count + 1 WHERE id = ?',
+                    'UPDATE videos SET likes_count = likes_count + 1, updated_at = NOW() WHERE id = ?',
                     [videoId]
                 );
+                
+                console.log(`User ${userId} liked video ${videoId}`);
                 
                 return { liked: true, action: 'liked' };
             }
         });
     } catch (error) {
         console.error('Toggle like error:', error);
-        // Fallback: just update the count without tracking individual likes
-        try {
-            await query('UPDATE videos SET likes_count = likes_count + 1 WHERE id = ?', [videoId]);
-            return { liked: true, action: 'liked' };
-        } catch (fallbackError) {
-            throw error;
-        }
+        throw error;
     }
 }
 
 // Record share (FIXED to handle missing tables)
 static async recordShare(videoId, userId = null, platform = 'unknown') {
     try {
-        // Check if video_shares table exists
-        try {
-            await query('SELECT 1 FROM video_shares LIMIT 1');
-        } catch (tableError) {
-            console.log('video_shares table does not exist, creating...');
-            await query(`
-                CREATE TABLE IF NOT EXISTS video_shares (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    video_id INT NOT NULL,
-                    user_id INT NULL,
-                    platform VARCHAR(50) NOT NULL DEFAULT 'unknown',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
-                )
-            `);
-        }
+        // Ensure tables exist first
+        await this.ensureShareTablesExist();
         
         await transaction(async (connection) => {
-            // Record share
+            // Record detailed share
             await connection.query(
                 'INSERT INTO video_shares (video_id, user_id, platform, created_at) VALUES (?, ?, ?, NOW())',
                 [videoId, userId, platform]
@@ -551,24 +712,28 @@ static async recordShare(videoId, userId = null, platform = 'unknown') {
                 'UPDATE videos SET shares_count = shares_count + 1, updated_at = NOW() WHERE id = ?',
                 [videoId]
             );
+            
+            console.log(`Share recorded for video ${videoId}, platform: ${platform}, user: ${userId}`);
         });
         
         return true;
     } catch (error) {
         console.error('Record share error:', error);
-        // Fallback: just update the count
+        
+        // Fallback: at least update the main count
         try {
-            await query('UPDATE videos SET shares_count = shares_count + 1 WHERE id = ?', [videoId]);
+            await query('UPDATE videos SET shares_count = shares_count + 1, updated_at = NOW() WHERE id = ?', [videoId]);
+            console.log(`Fallback share count updated for video ${videoId}`);
             return true;
         } catch (fallbackError) {
-            console.log('Share fallback also failed:', fallbackError);
+            console.error('Share fallback also failed:', fallbackError);
             return false;
         }
     }
 }
 
-    // Generate unique slug
-    static async generateUniqueSlug(title, excludeId = null) {
+// Generate unique slug
+static async generateUniqueSlug(title, excludeId = null) {
         try {
             let baseSlug = slugify(title, { lower: true, strict: true });
             let slug = baseSlug;
@@ -600,7 +765,6 @@ static async recordShare(videoId, userId = null, platform = 'unknown') {
         }
     }
 
-    // Get admin videos with pagination
 // Get admin videos with pagination
 static async getAdminVideos(options = {}) {
     try {
@@ -690,8 +854,8 @@ static async getAdminVideos(options = {}) {
     }
 }
 
-    // Get video analytics
-    static async getAnalytics(id, days = 30) {
+// Get video analytics
+static async getAnalytics(id, days = 30) {
         try {
             const sql = `
                 SELECT 
@@ -714,8 +878,8 @@ static async getAdminVideos(options = {}) {
         }
     }
 
-        // Get video count
-    static async getCount() {
+// Get video count
+static async getCount() {
         try {
             const result = await queryOne('SELECT COUNT(*) as count FROM videos');
             return result.count;
@@ -778,7 +942,14 @@ static async getAnalyticsOverview(days = 30) {
     try {
         console.log(`Getting analytics overview for ${days} days`);
         
-        // Views over time with better error handling
+        // Ensure tables exist
+        await Promise.all([
+            this.ensureViewTablesExist(),
+            this.ensureLikeTablesExist(),
+            this.ensureShareTablesExist()
+        ]);
+        
+        // Views over time
         const viewsQuery = `
             SELECT 
                 DATE(vv.created_at) as date,
@@ -792,12 +963,11 @@ static async getAnalyticsOverview(days = 30) {
             ORDER BY date DESC
         `;
         
-        let viewsData;
+        let viewsData = [];
         try {
             viewsData = await query(viewsQuery, [days]);
         } catch (error) {
-            console.log('Views query failed, using fallback');
-            viewsData = [];
+            console.log('Views query failed:', error);
         }
         
         // Top performing videos
@@ -805,25 +975,26 @@ static async getAnalyticsOverview(days = 30) {
             SELECT 
                 v.id, 
                 v.title, 
+                v.slug,
                 COALESCE(v.views_count, 0) as views_count, 
                 COALESCE(v.likes_count, 0) as likes_count, 
                 COALESCE(v.shares_count, 0) as shares_count,
                 (COALESCE(v.views_count, 0) * 0.5 + COALESCE(v.likes_count, 0) * 0.3 + COALESCE(v.shares_count, 0) * 0.2) as engagement_score
             FROM videos v 
             WHERE v.status = 'published'
+                AND v.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             ORDER BY engagement_score DESC 
             LIMIT 10
         `;
         
-        let topVideos;
+        let topVideos = [];
         try {
-            topVideos = await query(topVideosQuery);
+            topVideos = await query(topVideosQuery, [days]);
         } catch (error) {
-            console.log('Top videos query failed, using fallback');
-            topVideos = [];
+            console.log('Top videos query failed:', error);
         }
         
-        // Platform stats with better error handling
+        // Platform share stats
         const platformQuery = `
             SELECT 
                 COALESCE(vs.platform, 'unknown') as platform,
@@ -834,12 +1005,11 @@ static async getAnalyticsOverview(days = 30) {
             ORDER BY share_count DESC
         `;
         
-        let platformStats;
+        let platformStats = [];
         try {
             platformStats = await query(platformQuery, [days]);
         } catch (error) {
-            console.log('Platform stats query failed, using fallback');
-            platformStats = [];
+            console.log('Platform stats query failed:', error);
         }
         
         return {
@@ -849,7 +1019,6 @@ static async getAnalyticsOverview(days = 30) {
         };
     } catch (error) {
         console.error('Get analytics overview error:', error);
-        // Return safe fallback data
         return {
             viewsOverTime: [],
             topVideos: [],
