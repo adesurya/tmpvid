@@ -1,3 +1,5 @@
+// src/routes/api/admin.js - Tambahkan route ini
+
 const express = require('express');
 const router = express.Router();
 const VideoController = require('../../controllers/videoController');
@@ -7,6 +9,13 @@ const AdminController = require('../../controllers/adminController');
 const { adminAuth } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
+let AdsController;
+try {
+    AdsController = require('../../controllers/adsController');
+} catch (error) {
+    console.warn('AdsController not found, ads routes will be disabled');
+    AdsController = null;
+}
 // Add debug middleware
 router.use((req, res, next) => {
     console.log(`Admin API - ${req.method} ${req.path}`);
@@ -25,6 +34,9 @@ router.get('/analytics/detailed', AdminController.getDetailedAnalytics);
 router.get('/analytics/videos', AdminController.getVideoAnalytics);
 router.get('/analytics/users', AdminController.getUserAnalytics);
 
+// NEW: Real-time activity endpoint
+router.get('/analytics/realtime', AdminController.getRealTimeActivity);
+
 // Video management
 router.get('/videos', VideoController.getAdminList);
 router.get('/videos/:id', VideoController.getVideo);
@@ -33,6 +45,15 @@ router.post('/videos/upload', upload.single('video'), upload.handleUploadError, 
 router.put('/videos/:id', VideoController.update);
 router.delete('/videos/:id', VideoController.delete);
 router.get('/videos/:id/analytics', VideoController.getAnalytics);
+
+// NEW: Google Ads Management Routes
+router.get('/ads', AdsController.getAllAds);
+router.post('/ads', AdsController.createAds);
+router.put('/ads/:id', AdsController.updateAds);
+router.delete('/ads/:id', AdsController.deleteAds);
+router.put('/ads/:id/toggle', AdsController.toggleAdsStatus);
+router.get('/ads/active', AdsController.getActiveAdsForInjection);
+
 
 // User management
 router.get('/users', AdminController.getUsers);

@@ -140,7 +140,7 @@
                 <!-- Video Overlay -->
                 <div class="video-overlay"></div>
 
-                <!-- Side Actions -->
+                <!-- Side Actions - FIXED: Added Audio Toggle -->
                 <div class="side-actions">
                     <button class="action-btn like-btn" data-video-id="<%= video.id %>">
                         <i class="fas fa-heart"></i>
@@ -153,6 +153,11 @@
                     <button class="action-btn share-btn" data-video-id="<%= video.id %>" data-video-title="<%= video.title %>" data-video-slug="<%= video.slug %>">
                         <i class="fas fa-share"></i>
                         <span class="share-count"><%= video.shares_count || 0 %></span>
+                    </button>
+                    <!-- FIXED: Added Audio Toggle Button -->
+                    <button class="action-btn sound-btn" data-video-id="<%= video.id %>">
+                        <i class="fas fa-volume-mute" id="sound-icon-<%= video.id %>"></i>
+                        <span>Sound</span>
                     </button>
                 </div>
 
@@ -332,6 +337,11 @@
                 toggleLike(video.id);
             });
 
+            // FIXED: Audio/Sound button event listener
+            document.querySelector('.sound-btn').addEventListener('click', function() {
+                toggleSound(video.id);
+            });
+
             // Share modal
             document.getElementById('shareClose').addEventListener('click', closeShareModal);
             document.getElementById('shareModal').addEventListener('click', function(e) {
@@ -359,6 +369,59 @@
                 console.log('Video ended');
                 recordWatchCompletion();
             });
+
+            // FIXED: Initialize audio state based on video muted property
+            initializeAudioState();
+        }
+
+        // FIXED: Initialize audio button state
+        function initializeAudioState() {
+            const videoElement = document.getElementById('mainVideo');
+            const soundIcon = document.getElementById(`sound-icon-${video.id}`);
+            const soundBtn = document.querySelector('.sound-btn');
+            
+            if (videoElement && soundIcon && soundBtn) {
+                if (videoElement.muted) {
+                    soundIcon.className = 'fas fa-volume-mute';
+                    soundBtn.classList.remove('active');
+                } else {
+                    soundIcon.className = 'fas fa-volume-up';
+                    soundBtn.classList.add('active');
+                }
+            }
+        }
+
+        // FIXED: Toggle sound function
+        function toggleSound(videoId) {
+            console.log('Toggle sound for video:', videoId);
+            
+            const videoElement = document.getElementById('mainVideo');
+            const soundIcon = document.getElementById(`sound-icon-${videoId}`);
+            const soundBtn = document.querySelector('.sound-btn');
+            
+            if (!videoElement || !soundIcon || !soundBtn) {
+                console.error('Sound elements not found');
+                return;
+            }
+            
+            try {
+                if (videoElement.muted) {
+                    // Unmute
+                    videoElement.muted = false;
+                    soundIcon.className = 'fas fa-volume-up';
+                    soundBtn.classList.add('active');
+                    showToast('🔊 Sound On');
+                } else {
+                    // Mute
+                    videoElement.muted = true;
+                    soundIcon.className = 'fas fa-volume-mute';
+                    soundBtn.classList.remove('active');
+                    showToast('🔇 Sound Off');
+                }
+            } catch (error) {
+                console.error('Error toggling sound:', error);
+                showToast('Failed to toggle sound');
+            }
         }
 
         function openShareModal(videoId, videoTitle, videoSlug) {
@@ -415,7 +478,6 @@
                     break;
             }
             
-            // Record share and update counter
             recordShare(currentShareVideoId, platform);
             updateShareCount(currentShareVideoId);
             closeShareModal();
@@ -574,13 +636,38 @@
         }
 
         function showToast(message) {
+            // Remove existing toasts
+            document.querySelectorAll('.toast').forEach(toast => toast.remove());
+            
             const toast = document.createElement('div');
             toast.className = 'toast';
             toast.textContent = message;
+            
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                z-index: 3000;
+                font-size: 14px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                animation: toastSlideUp 0.3s ease;
+            `;
+            
             document.body.appendChild(toast);
             
             setTimeout(() => {
-                toast.remove();
+                toast.style.animation = 'toastFadeOut 0.3s ease forwards';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
             }, 3000);
         }
 
@@ -592,6 +679,36 @@
                 if (currentTime > 0) {
                     recordWatchTime(currentTime);
                 }
+            }
+        });
+
+        // FIXED: Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            const videoElement = document.getElementById('mainVideo');
+            
+            switch(e.key.toLowerCase()) {
+                case ' ':
+                    e.preventDefault();
+                    if (videoElement.paused) {
+                        videoElement.play();
+                    } else {
+                        videoElement.pause();
+                    }
+                    break;
+                case 'm':
+                    e.preventDefault();
+                    toggleSound(video.id);
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    if (videoElement.requestFullscreen) {
+                        videoElement.requestFullscreen();
+                    }
+                    break;
             }
         });
     </script>
@@ -674,6 +791,44 @@
             gap: 5px;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* FIXED: Audio button active state */
+        .sound-btn.active {
+            color: #fe2c55;
+        }
+
+        .sound-btn.active i {
+            color: #fe2c55;
+        }
+
+        /* Action buttons improvements */
+        .action-btn {
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(254, 44, 85, 0.3);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .like-btn.liked {
+            color: #fe2c55;
+        }
+
+        .like-btn.liked i {
+            color: #fe2c55;
+            animation: heartPulse 0.3s ease;
+        }
+
+        @keyframes heartPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
         }
 
         .related-videos-section {
@@ -766,6 +921,29 @@
             gap: 10px;
         }
 
+        /* Toast animations */
+        @keyframes toastSlideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        @keyframes toastFadeOut {
+            from {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+            to {
+                opacity: 0;
+                transform: translate(-50%, -20px);
+            }
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .video-info-detailed {
@@ -797,6 +975,65 @@
 
             .related-video-thumbnail {
                 height: 120px;
+            }
+
+            .side-actions {
+                right: 15px;
+                bottom: 100px;
+                gap: 15px;
+            }
+
+            .action-btn {
+                width: 48px;
+                height: 48px;
+            }
+
+            .action-btn i {
+                font-size: 20px;
+            }
+
+            .action-btn span {
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .side-actions {
+                right: 10px;
+                bottom: 80px;
+                gap: 12px;
+            }
+
+            .action-btn {
+                width: 44px;
+                height: 44px;
+            }
+
+            .action-btn i {
+                font-size: 18px;
+            }
+
+            .action-btn span {
+                font-size: 9px;
+            }
+
+            .video-info-detailed {
+                left: 8px;
+                right: 60px;
+                bottom: 8px;
+                padding: 12px;
+            }
+
+            .video-title {
+                font-size: 14px;
+            }
+
+            .engagement-stats {
+                gap: 8px;
+            }
+
+            .stat-item {
+                font-size: 11px;
             }
         }
     </style>

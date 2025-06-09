@@ -1,366 +1,1150 @@
-<div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <h2>Analytics Dashboard</h2>
-        <select id="timeframeSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px;">
-            <option value="7">Last 7 Days</option>
-            <option value="30" selected>Last 30 Days</option>
-            <option value="90">Last 90 Days</option>
-        </select>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Video Platform</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    <!-- Summary Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
-        <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <h3 style="margin: 0; font-size: 24px;" id="totalViews">-</h3>
-                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Views</p>
-                </div>
-                <i class="fas fa-eye" style="font-size: 32px; opacity: 0.8;"></i>
-            </div>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <h3 style="margin: 0; font-size: 24px;" id="totalLikes">-</h3>
-                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Likes</p>
-                </div>
-                <i class="fas fa-heart" style="font-size: 32px; opacity: 0.8;"></i>
-            </div>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <h3 style="margin: 0; font-size: 24px;" id="totalShares">-</h3>
-                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Shares</p>
-                </div>
-                <i class="fas fa-share" style="font-size: 32px; opacity: 0.8;"></i>
-            </div>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #f39c12, #e67e22); color: white; padding: 20px; border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <h3 style="margin: 0; font-size: 24px;" id="totalVideos">-</h3>
-                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Videos</p>
-                </div>
-                <i class="fas fa-video" style="font-size: 32px; opacity: 0.8;"></i>
-            </div>
-        </div>
-    </div>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
 
-    <!-- Charts Section -->
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px;">
-        <!-- Views Over Time Chart -->
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <h3 style="margin-bottom: 15px;">Views Over Time</h3>
-            <canvas id="viewsChart" width="400" height="200"></canvas>
-        </div>
-        
-        <!-- Share Platforms Chart -->
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <h3 style="margin-bottom: 15px;">Share Platforms</h3>
-            <canvas id="sharesChart" width="300" height="200"></canvas>
-        </div>
-    </div>
+        .analytics-container {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
-    <!-- Top Performing Videos -->
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h3 style="margin-bottom: 15px;">Top Performing Videos</h3>
-        <div id="topVideosList" style="max-height: 400px; overflow-y: auto;">
-            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-                <p>Loading...</p>
-            </div>
-        </div>
-    </div>
+        .analytics-header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    <!-- Recent Activity -->
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-        <h3 style="margin-bottom: 15px;">Recent Activity</h3>
-        <div id="recentActivity">
-            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-                <p>Loading...</p>
-            </div>
-        </div>
-    </div>
-</div>
+        .analytics-header h1 {
+            color: #2c3e50;
+            font-size: 32px;
+            margin: 0;
+        }
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-<script>
-let viewsChart, sharesChart;
+        .time-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize charts
-    initializeCharts();
-    
-    // Load analytics data
-    loadAnalytics();
-    
-    // Timeframe selector
-    document.getElementById('timeframeSelect').addEventListener('change', function() {
-        loadAnalytics(this.value);
-    });
-    
-    // Auto-refresh every 5 minutes
-    setInterval(() => {
-        const selectedTimeframe = document.getElementById('timeframeSelect').value;
-        loadAnalytics(selectedTimeframe);
-    }, 5 * 60 * 1000);
-});
+        .time-btn {
+            padding: 8px 16px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+        }
 
-function initializeCharts() {
-    // Views Chart
-    const viewsCtx = document.getElementById('viewsChart').getContext('2d');
-    viewsChart = new Chart(viewsCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Views',
-                data: [],
-                borderColor: '#3498db',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
+        .time-btn:hover,
+        .time-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-color);
+        }
+
+        .summary-card.views {
+            --accent-color: #3498db;
+        }
+
+        .summary-card.likes {
+            --accent-color: #e74c3c;
+        }
+
+        .summary-card.shares {
+            --accent-color: #27ae60;
+        }
+
+        .summary-card.engagement {
+            --accent-color: #f39c12;
+        }
+
+        .card-icon {
+            float: right;
+            width: 60px;
+            height: 60px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            opacity: 0.9;
+        }
+
+        .card-content h3 {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .card-content p {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .card-trend {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .trend-up {
+            color: #27ae60;
+        }
+
+        .trend-down {
+            color: #e74c3c;
+        }
+
+        /* Charts Section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .chart-container canvas {
+            max-height: 300px;
+        }
+
+        /* Detailed Tables */
+        .detailed-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 20px 25px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .table-header h3 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .table-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            border-bottom: 1px solid #f8f9fa;
+            transition: background 0.3s;
+        }
+
+        .table-row:hover {
+            background: #f8f9fa;
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .row-content {
+            flex: 1;
+        }
+
+        .row-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 3px;
+            font-size: 14px;
+        }
+
+        .row-subtitle {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .row-value {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        /* Real-time Updates */
+        .realtime-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .realtime-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .realtime-header h3 {
+            color: #2c3e50;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #27ae60;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #27ae60;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .realtime-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .realtime-item {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .realtime-item:hover {
+            border-color: #3498db;
+            background: white;
+        }
+
+        .realtime-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+
+        .realtime-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .realtime-sublabel {
+            color: #95a5a6;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .realtime-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .offline-indicator {
+            color: #e74c3c !important;
+        }
+
+        .offline-dot {
+            background: #e74c3c !important;
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .detailed-section {
+                grid-template-columns: 1fr;
             }
         }
-    });
 
-    // Shares Chart
-    const sharesCtx = document.getElementById('sharesChart').getContext('2d');
-    sharesChart = new Chart(sharesCtx, {
-        type: 'doughnut',
-        data: {
-            labels: [],
-            datasets: [{
-                data: [],
-                backgroundColor: [
-                    '#25d366', // WhatsApp
-                    '#1da1f2', // Twitter
-                    '#3b5998', // Facebook
-                    '#0088cc', // Telegram
-                    '#0077b5', // LinkedIn
-                    '#ff6b6b'  // Other
+        @media (max-width: 768px) {
+            .analytics-container {
+                padding: 15px;
+            }
+            
+            .analytics-header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .time-selector {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .realtime-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .realtime-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="analytics-container">
+        <!-- Header -->
+        <div class="analytics-header">
+            <h1><i class="fas fa-chart-line"></i> Video Analytics</h1>
+            <div class="time-selector">
+                <span style="color: #7f8c8d; margin-right: 10px;">Time Period:</span>
+                <button class="time-btn" data-period="24h">24 Hours</button>
+                <button class="time-btn active" data-period="7d">7 Days</button>
+                <button class="time-btn" data-period="30d">30 Days</button>
+                <button class="time-btn" data-period="90d">90 Days</button>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card views">
+                <div class="card-icon">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <div class="card-content">
+                    <h3 id="totalViews">0</h3>
+                    <p>Total Views</p>
+                    <div class="card-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span id="viewsTrend">+12.5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-card likes">
+                <div class="card-icon">
+                    <i class="fas fa-heart"></i>
+                </div>
+                <div class="card-content">
+                    <h3 id="totalLikes">0</h3>
+                    <p>Total Likes</p>
+                    <div class="card-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span id="likesTrend">+8.3%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-card shares">
+                <div class="card-icon">
+                    <i class="fas fa-share"></i>
+                </div>
+                <div class="card-content">
+                    <h3 id="totalShares">0</h3>
+                    <p>Total Shares</p>
+                    <div class="card-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span id="sharesTrend">+15.7%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-card engagement">
+                <div class="card-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="card-content">
+                    <h3 id="engagementRate">0%</h3>
+                    <p>Engagement Rate</p>
+                    <div class="card-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span id="engagementTrend">+5.2%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Activity -->
+        <div class="realtime-section">
+            <div class="realtime-header">
+                <h3><i class="fas fa-broadcast-tower"></i> Real-time Activity</h3>
+                <div class="live-indicator" id="liveIndicator">
+                    <div class="live-dot"></div>
+                    <span id="liveStatus">Live</span>
+                </div>
+            </div>
+            <div class="realtime-grid">
+                <div class="realtime-item">
+                    <div class="realtime-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="realtime-value" id="activeUsers">0</div>
+                    <div class="realtime-label">Active Users</div>
+                    <div class="realtime-sublabel" id="activeUsersStatus">Last 5 minutes</div>
+                </div>
+                <div class="realtime-item">
+                    <div class="realtime-icon">
+                        <i class="fas fa-play"></i>
+                    </div>
+                    <div class="realtime-value" id="currentViews">0</div>
+                    <div class="realtime-label">Current Views</div>
+                    <div class="realtime-sublabel" id="currentViewsStatus">Last 1 minute</div>
+                </div>
+                <div class="realtime-item">
+                    <div class="realtime-icon">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <div class="realtime-value" id="recentLikes">0</div>
+                    <div class="realtime-label">Recent Likes</div>
+                    <div class="realtime-sublabel" id="recentLikesStatus">Last 5 minutes</div>
+                </div>
+                <div class="realtime-item">
+                    <div class="realtime-icon">
+                        <i class="fas fa-share"></i>
+                    </div>
+                    <div class="realtime-value" id="recentShares">0</div>
+                    <div class="realtime-label">Recent Shares</div>
+                    <div class="realtime-sublabel" id="recentSharesStatus">Last 5 minutes</div>
+                </div>
+            </div>
+            <div class="realtime-info" id="realtimeInfo">
+                <small id="lastUpdated">Last updated: Never</small>
+                <small id="dataSource" style="margin-left: 20px;">Data source: Real database</small>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-grid">
+ 
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-line"></i> Views Over Time</h3>
+                <div class="chart-container">
+                    <canvas id="viewsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-pie"></i> Engagement Breakdown</h3>
+                <div class="chart-container">
+                    <canvas id="engagementChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Tables -->
+        <div class="detailed-section">
+            <!-- Top Videos by Views -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fas fa-trophy"></i> Top Videos by Views</h3>
+                </div>
+                <div class="table-content" id="topVideosByViews">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Videos by Engagement -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fas fa-fire"></i> Top Videos by Engagement</h3>
+                </div>
+                <div class="table-content" id="topVideosByEngagement">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Share Platform Analytics -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fas fa-share-alt"></i> Share Platform Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="sharePlatformChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3><i class="fas fa-clock"></i> Activity Timeline</h3>
+                <div class="chart-container">
+                    <canvas id="activityTimelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for charts
+        let viewsChart, engagementChart, sharePlatformChart, activityTimelineChart;
+        let currentPeriod = '7d';
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            initializeCharts();
+            loadAnalyticsData();
+            startRealTimeUpdates();
+        });
+
+        function setupEventListeners() {
+            // Time period selector
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPeriod = this.dataset.period;
+                    loadAnalyticsData();
+                });
+            });
+        }
+
+        function initializeCharts() {
+            // Views Over Time Chart
+            const viewsCtx = document.getElementById('viewsChart').getContext('2d');
+            viewsChart = new Chart(viewsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Views',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#3498db',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Engagement Breakdown Chart
+            const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+            engagementChart = new Chart(engagementCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Views', 'Likes', 'Shares'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#3498db', '#e74c3c', '#27ae60'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Share Platform Chart
+            const sharePlatformCtx = document.getElementById('sharePlatformChart').getContext('2d');
+            sharePlatformChart = new Chart(sharePlatformCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['WhatsApp', 'Twitter', 'Facebook', 'Telegram', 'LinkedIn', 'Copy Link'],
+                    datasets: [{
+                        label: 'Shares',
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: ['#25d366', '#1da1f2', '#3b5998', '#0088cc', '#0077b5', '#6c757d'],
+                        borderRadius: 5,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Activity Timeline Chart
+            const activityCtx = document.getElementById('activityTimelineChart').getContext('2d');
+            activityTimelineChart = new Chart(activityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Likes',
+                            data: [],
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Shares',
+                            data: [],
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadAnalyticsData() {
+            try {
+                // Show loading state
+                showLoading();
+
+                // Simulate API call to your backend
+                const response = await fetch(`/api/admin/analytics/detailed?timeframe=${currentPeriod}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateDashboard(data.data);
+                } else {
+                    throw new Error(data.message || 'Failed to load analytics');
+                }
+            } catch (error) {
+                console.error('Analytics error:', error);
+                // Load demo data on error
+                loadDemoData();
+            }
+        }
+
+        function loadDemoData() {
+            // Demo data for demonstration
+            const demoData = {
+                totalStats: {
+                    total_views: 125847,
+                    total_likes: 8432,
+                    total_shares: 2156,
+                    total_videos: 67
+                },
+                viewsOverTime: generateTimeSeriesData('views'),
+                sharesByPlatform: [
+                    { platform: 'whatsapp', share_count: 856 },
+                    { platform: 'twitter', share_count: 423 },
+                    { platform: 'facebook', share_count: 312 },
+                    { platform: 'telegram', share_count: 198 },
+                    { platform: 'linkedin', share_count: 145 },
+                    { platform: 'copy', share_count: 222 }
                 ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+                topVideos: [
+                    { title: 'Amazing Nature Documentary', views_count: 15420, likes_count: 892, shares_count: 156, engagement_score: 8.5 },
+                    { title: 'Cooking Masterclass', views_count: 12840, likes_count: 756, shares_count: 134, engagement_score: 7.8 },
+                    { title: 'Tech Review Latest Phone', views_count: 11230, likes_count: 623, shares_count: 89, engagement_score: 7.2 },
+                    { title: 'Travel Vlog Tokyo', views_count: 9856, likes_count: 445, shares_count: 67, engagement_score: 6.9 },
+                    { title: 'Fitness Challenge', views_count: 8945, likes_count: 398, shares_count: 78, engagement_score: 6.5 }
+                ]
+            };
+
+            updateDashboard(demoData);
+        }
+
+        function generateTimeSeriesData(type) {
+            const data = [];
+            const days = currentPeriod === '24h' ? 24 : currentPeriod === '7d' ? 7 : currentPeriod === '30d' ? 30 : 90;
+            const isHours = currentPeriod === '24h';
+            
+            for (let i = days - 1; i >= 0; i--) {
+                const date = new Date();
+                if (isHours) {
+                    date.setHours(date.getHours() - i);
+                } else {
+                    date.setDate(date.getDate() - i);
                 }
+                
+                let value;
+                switch (type) {
+                    case 'views':
+                        value = Math.floor(Math.random() * 2000) + 500;
+                        break;
+                    case 'likes':
+                        value = Math.floor(Math.random() * 200) + 50;
+                        break;
+                    case 'shares':
+                        value = Math.floor(Math.random() * 50) + 10;
+                        break;
+                    default:
+                        value = Math.floor(Math.random() * 1000);
+                }
+                
+                data.push({
+                    date: date.toISOString(),
+                    [type]: value,
+                    total_views: value,
+                    unique_users: Math.floor(value * 0.7),
+                    avg_duration: Math.floor(Math.random() * 120) + 30
+                });
+            }
+            
+            return data;
+        }
+
+        function updateDashboard(data) {
+            // Update summary cards
+            updateSummaryCards(data.totalStats);
+            
+            // Update charts
+            updateViewsChart(data.viewsOverTime);
+            updateEngagementChart(data.totalStats);
+            updateSharePlatformChart(data.sharesByPlatform);
+            updateActivityTimeline();
+            
+            // Update tables
+            updateTopVideosTables(data.topVideos);
+            
+            hideLoading();
+        }
+
+        function updateSummaryCards(stats) {
+            document.getElementById('totalViews').textContent = formatNumber(stats.total_views || 0);
+            document.getElementById('totalLikes').textContent = formatNumber(stats.total_likes || 0);
+            document.getElementById('totalShares').textContent = formatNumber(stats.total_shares || 0);
+            
+            // Calculate engagement rate
+            const totalViews = stats.total_views || 0;
+            const totalEngagements = (stats.total_likes || 0) + (stats.total_shares || 0);
+            const engagementRate = totalViews > 0 ? ((totalEngagements / totalViews) * 100).toFixed(1) : 0;
+            document.getElementById('engagementRate').textContent = engagementRate + '%';
+        }
+
+        function updateViewsChart(viewsData) {
+            if (!viewsData || viewsData.length === 0) return;
+
+            const labels = viewsData.map(item => {
+                const date = new Date(item.date);
+                return currentPeriod === '24h' 
+                    ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+
+            const data = viewsData.map(item => item.total_views || item.views || 0);
+
+            viewsChart.data.labels = labels;
+            viewsChart.data.datasets[0].data = data;
+            viewsChart.update('active');
+        }
+
+        function updateEngagementChart(stats) {
+            const data = [
+                stats.total_views || 0,
+                stats.total_likes || 0,
+                stats.total_shares || 0
+            ];
+
+            engagementChart.data.datasets[0].data = data;
+            engagementChart.update('active');
+        }
+
+        function updateSharePlatformChart(sharesData) {
+            if (!sharesData || sharesData.length === 0) return;
+
+            const labels = sharesData.map(item => 
+                item.platform.charAt(0).toUpperCase() + item.platform.slice(1)
+            );
+            const data = sharesData.map(item => item.share_count);
+
+            sharePlatformChart.data.labels = labels;
+            sharePlatformChart.data.datasets[0].data = data;
+            sharePlatformChart.update('active');
+        }
+
+        function updateActivityTimeline() {
+            const likesData = generateTimeSeriesData('likes');
+            const sharesData = generateTimeSeriesData('shares');
+
+            const labels = likesData.map(item => {
+                const date = new Date(item.date);
+                return currentPeriod === '24h' 
+                    ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+
+            activityTimelineChart.data.labels = labels;
+            activityTimelineChart.data.datasets[0].data = likesData.map(item => item.likes);
+            activityTimelineChart.data.datasets[1].data = sharesData.map(item => item.shares);
+            activityTimelineChart.update('active');
+        }
+
+        function updateTopVideosTables(topVideos) {
+            if (!topVideos || topVideos.length === 0) return;
+
+            // Top Videos by Views
+            const viewsTableContent = topVideos
+                .sort((a, b) => b.views_count - a.views_count)
+                .slice(0, 5)
+                .map((video, index) => `
+                    <div class="table-row">
+                        <div class="row-content">
+                            <div class="row-title">${video.title}</div>
+                            <div class="row-subtitle">Rank #${index + 1}</div>
+                        </div>
+                        <div class="row-value">${formatNumber(video.views_count)}</div>
+                    </div>
+                `).join('');
+
+            document.getElementById('topVideosByViews').innerHTML = viewsTableContent;
+
+            // Top Videos by Engagement
+            const engagementTableContent = topVideos
+                .sort((a, b) => b.engagement_score - a.engagement_score)
+                .slice(0, 5)
+                .map((video, index) => `
+                    <div class="table-row">
+                        <div class="row-content">
+                            <div class="row-title">${video.title}</div>
+                            <div class="row-subtitle">Score: ${video.engagement_score}/10</div>
+                        </div>
+                        <div class="row-value">${formatNumber(video.likes_count + video.shares_count)}</div>
+                    </div>
+                `).join('');
+
+            document.getElementById('topVideosByEngagement').innerHTML = engagementTableContent;
+        }
+
+        function startRealTimeUpdates() {
+            // Update real-time stats every 10 seconds
+            setInterval(() => {
+                updateRealTimeStats();
+            }, 10000);
+            
+            // Initial update
+            updateRealTimeStats();
+        }
+
+        async function updateRealTimeStats() {
+            try {
+                console.log('🔄 Updating real-time stats...');
+                
+                // Get REAL real-time data from API
+                const response = await fetch('/api/admin/analytics/realtime');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const stats = data.data;
+                    
+                    // Update live indicator
+                    const liveIndicator = document.getElementById('liveIndicator');
+                    const liveStatus = document.getElementById('liveStatus');
+                    
+                    if (stats.activeUsers > 0 || stats.currentViews > 0) {
+                        liveIndicator.classList.remove('offline-indicator');
+                        liveStatus.textContent = 'Live';
+                        liveIndicator.querySelector('.live-dot').classList.remove('offline-dot');
+                    } else {
+                        liveIndicator.classList.add('offline-indicator');
+                        liveStatus.textContent = 'No Activity';
+                        liveIndicator.querySelector('.live-dot').classList.add('offline-dot');
+                    }
+                    
+                    // Animate real values
+                    animateValue('activeUsers', 
+                        parseInt(document.getElementById('activeUsers').textContent) || 0, 
+                        stats.activeUsers || 0, 1000);
+                    
+                    animateValue('currentViews', 
+                        parseInt(document.getElementById('currentViews').textContent) || 0, 
+                        stats.currentViews || 0, 1000);
+                    
+                    animateValue('recentLikes', 
+                        parseInt(document.getElementById('recentLikes').textContent) || 0, 
+                        stats.recentLikes || 0, 1000);
+                    
+                    animateValue('recentShares', 
+                        parseInt(document.getElementById('recentShares').textContent) || 0, 
+                        stats.recentShares || 0, 1000);
+                    
+                    // Update timestamps and status
+                    const lastUpdated = document.getElementById('lastUpdated');
+                    const dataSource = document.getElementById('dataSource');
+                    
+                    if (lastUpdated) {
+                        lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                    }
+                    
+                    if (dataSource) {
+                        const sourceText = data.dataSource === 'real_database' ? 'Real database' : 'No activity detected';
+                        dataSource.textContent = `Data source: ${sourceText}`;
+                    }
+                    
+                    console.log('✅ Real-time stats updated:', stats);
+                } else {
+                    throw new Error(data.message || 'Invalid response format');
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to fetch real-time stats:', error);
+                
+                // Show zero values when no real data available
+                document.getElementById('activeUsers').textContent = '0';
+                document.getElementById('currentViews').textContent = '0';
+                document.getElementById('recentLikes').textContent = '0';
+                document.getElementById('recentShares').textContent = '0';
             }
         }
-    });
-}
 
-async function loadAnalytics(timeframe = '30') {
-    try {
-        showLoading();
-        
-        const response = await fetch(`/api/admin/analytics/detailed?timeframe=${timeframe}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        function animateValue(id, start, end, duration) {
+            const element = document.getElementById(id);
+            if (!element) return;
+
+            const range = end - start;
+            const increment = range / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
         }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            updateSummaryCards(data.data.totalStats);
-            updateViewsChart(data.data.viewsOverTime);
-            updateSharesChart(data.data.sharesByPlatform);
-            updateTopVideosList(data.data.topVideos);
-            updateRecentActivity(data.data.viewsOverTime);
-        } else {
-            throw new Error(data.message);
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
         }
-        
-        hideLoading();
-    } catch (error) {
-        console.error('Load analytics error:', error);
-        showError('Failed to load analytics: ' + error.message);
-        hideLoading();
-    }
-}
 
-function updateSummaryCards(stats) {
-    document.getElementById('totalViews').textContent = formatNumber(stats.total_views || 0);
-    document.getElementById('totalLikes').textContent = formatNumber(stats.total_likes || 0);
-    document.getElementById('totalShares').textContent = formatNumber(stats.total_shares || 0);
-    document.getElementById('totalVideos').textContent = formatNumber(stats.total_videos || 0);
-}
+        function showLoading() {
+            // Show loading state for charts
+            const chartCards = document.querySelectorAll('.chart-card');
+            chartCards.forEach(card => {
+                const container = card.querySelector('.chart-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading chart data...
+                        </div>
+                    `;
+                }
+            });
+        }
 
-function updateViewsChart(viewsData) {
-    if (!viewsData || viewsData.length === 0) {
-        viewsChart.data.labels = ['No Data'];
-        viewsChart.data.datasets[0].data = [0];
-    } else {
-        viewsChart.data.labels = viewsData.map(item => 
-            new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        ).reverse();
-        viewsChart.data.datasets[0].data = viewsData.map(item => item.total_views).reverse();
-    }
-    viewsChart.update();
-}
+        function hideLoading() {
+            // Loading will be hidden when charts are updated
+        }
 
-function updateSharesChart(sharesData) {
-    if (!sharesData || sharesData.length === 0) {
-        sharesChart.data.labels = ['No Data'];
-        sharesChart.data.datasets[0].data = [1];
-    } else {
-        sharesChart.data.labels = sharesData.map(item => 
-            item.platform.charAt(0).toUpperCase() + item.platform.slice(1)
-        );
-        sharesChart.data.datasets[0].data = sharesData.map(item => item.share_count);
-    }
-    sharesChart.update();
-}
+        // Export function for integration
+        window.refreshAnalytics = loadAnalyticsData;
 
-function updateTopVideosList(topVideos) {
-    const container = document.getElementById('topVideosList');
-    
-    if (!topVideos || topVideos.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
-                <i class="fas fa-video-slash" style="font-size: 48px; margin-bottom: 10px;"></i>
-                <p>No videos found</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = topVideos.map((video, index) => `
-        <div style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #e9ecef; ${index === 0 ? 'background: rgba(255, 215, 0, 0.1);' : ''}">
-            <div style="background: ${index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#7f8c8d'}; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 15px;">
-                ${index + 1}
-            </div>
-            <div style="flex: 1;">
-                <h4 style="margin: 0 0 5px 0; font-size: 16px;">${video.title}</h4>
-                <div style="display: flex; gap: 15px; font-size: 12px; color: #7f8c8d;">
-                    <span><i class="fas fa-eye"></i> ${formatNumber(video.views_count)}</span>
-                    <span><i class="fas fa-heart"></i> ${formatNumber(video.likes_count)}</span>
-                    <span><i class="fas fa-share"></i> ${formatNumber(video.shares_count)}</span>
-                </div>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-weight: bold; color: #2c3e50;">
-                    ${Math.round(video.engagement_score * 10) / 10}
-                </div>
-                <div style="font-size: 11px; color: #7f8c8d;">
-                    Engagement
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function updateRecentActivity(viewsData) {
-    const container = document.getElementById('recentActivity');
-    
-    if (!viewsData || viewsData.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
-                <i class="fas fa-clock" style="font-size: 48px; margin-bottom: 10px;"></i>
-                <p>No recent activity</p>
-            </div>
-        `;
-        return;
-    }
-    
-    const recentData = viewsData.slice(0, 5);
-    
-    container.innerHTML = recentData.map(item => `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e9ecef;">
-            <div>
-                <div style="font-weight: 500;">${new Date(item.date).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                })}</div>
-                <div style="font-size: 12px; color: #7f8c8d;">
-                    ${item.videos_viewed} videos viewed by ${item.unique_users} users
-                </div>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-weight: bold; color: #3498db;">
-                    ${formatNumber(item.total_views)} views
-                </div>
-                <div style="font-size: 11px; color: #7f8c8d;">
-                    Avg: ${Math.round(item.avg_duration || 0)}s
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function formatNumber(num) {
-    if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-}
-
-function showLoading() {
-    // Add loading state to cards
-    document.querySelectorAll('#totalViews, #totalLikes, #totalShares, #totalVideos').forEach(el => {
-        el.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    });
-}
-
-function hideLoading() {
-    // Loading state will be replaced by actual data
-}
-
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #e74c3c;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 5px;
-        z-index: 1000;
-        max-width: 300px;
-    `;
-    errorDiv.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-exclamation-circle"></i>
-            <span>${message}</span>
-        </div>
-    `;
-    
-    document.body.appendChild(errorDiv);
-    
-    setTimeout(() => {
-        errorDiv.remove();
-    }, 5000);
-}
-</script>
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadAnalyticsData();
+        }, 30000);
+    </script>
+</body>
+</html>

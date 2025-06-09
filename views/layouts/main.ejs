@@ -1,4 +1,4 @@
-<!-- views/layouts/main.ejs -->
+<!-- views/layouts/main.ejs - Updated with ads integration -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title || 'Video Platform' %></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Header Ads Injection -->
+    <% if (typeof ads !== 'undefined' && ads.header && ads.header.length > 0) { %>
+        <% ads.header.forEach(function(ad) { %>
+            <!-- <%= ad.name %> (<%= ad.type %>) -->
+            <%- ad.code %>
+        <% }); %>
+    <% } %>
+    
     <style>
         * {
             margin: 0;
@@ -79,9 +88,207 @@
         .home-link a:hover {
             text-decoration: underline;
         }
+
+        /* Ads Containers */
+        .ads-container {
+            width: 100%;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .ads-before-video {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .ads-after-video {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .ads-sidebar {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 5;
+            max-width: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .ads-sidebar {
+                display: none; /* Hide sidebar ads on mobile */
+            }
+            
+            .ads-before-video,
+            .ads-after-video {
+                left: 10px;
+                right: 10px;
+                transform: none;
+                max-width: calc(100% - 20px);
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Before Video Ads -->
+    <% if (typeof ads !== 'undefined' && ads.before_video && ads.before_video.length > 0) { %>
+        <div class="ads-before-video">
+            <% ads.before_video.forEach(function(ad) { %>
+                <div class="ads-container">
+                    <!-- <%= ad.name %> -->
+                    <%- ad.code %>
+                </div>
+            <% }); %>
+        </div>
+    <% } %>
+
+    <!-- Sidebar Ads -->
+    <% if (typeof ads !== 'undefined' && ads.sidebar && ads.sidebar.length > 0) { %>
+        <div class="ads-sidebar">
+            <% ads.sidebar.forEach(function(ad) { %>
+                <div class="ads-container" style="margin-bottom: 20px;">
+                    <!-- <%= ad.name %> -->
+                    <%- ad.code %>
+                </div>
+            <% }); %>
+        </div>
+    <% } %>
+
+    <!-- Main Content -->
     <%- body %>
+
+    <!-- After Video Ads -->
+    <% if (typeof ads !== 'undefined' && ads.after_video && ads.after_video.length > 0) { %>
+        <div class="ads-after-video">
+            <% ads.after_video.forEach(function(ad) { %>
+                <div class="ads-container">
+                    <!-- <%= ad.name %> -->
+                    <%- ad.code %>
+                </div>
+            <% }); %>
+        </div>
+    <% } %>
+
+    <!-- Footer Ads Injection -->
+    <% if (typeof ads !== 'undefined' && ads.footer && ads.footer.length > 0) { %>
+        <% ads.footer.forEach(function(ad) { %>
+            <!-- <%= ad.name %> (<%= ad.type %>) -->
+            <%- ad.code %>
+        <% }); %>
+    <% } %>
+
+    <!-- Ads Management Script -->
+    <script>
+        // Enhanced ads management and tracking
+        (function() {
+            'use strict';
+            
+            // Track ad impressions
+            function trackAdImpression(adName, adType) {
+                // Send impression data to your analytics
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'ad_impression', {
+                        'ad_name': adName,
+                        'ad_type': adType,
+                        'page_location': window.location.href
+                    });
+                }
+                
+                console.log(`Ad impression tracked: ${adName} (${adType})`);
+            }
+            
+            // Track ad clicks
+            function trackAdClick(adName, adType) {
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'ad_click', {
+                        'ad_name': adName,
+                        'ad_type': adType,
+                        'page_location': window.location.href
+                    });
+                }
+                
+                console.log(`Ad click tracked: ${adName} (${adType})`);
+            }
+            
+            // Initialize ad tracking when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Track all ad impressions
+                <% if (typeof ads !== 'undefined') { %>
+                    <% ['header', 'footer', 'before_video', 'after_video', 'sidebar'].forEach(function(position) { %>
+                        <% if (ads[position] && ads[position].length > 0) { %>
+                            <% ads[position].forEach(function(ad) { %>
+                                trackAdImpression('<%= ad.name %>', '<%= ad.type %>');
+                            <% }); %>
+                        <% } %>
+                    <% }); %>
+                <% } %>
+                
+                // Add click tracking to ad containers
+                document.querySelectorAll('.ads-container').forEach(function(container, index) {
+                    container.addEventListener('click', function() {
+                        // You can customize this based on your ad naming convention
+                        trackAdClick('ad_' + index, 'click');
+                    });
+                });
+                
+                // Auto-hide ads after certain time (optional)
+                const autoHideAds = document.querySelectorAll('.ads-before-video, .ads-after-video');
+                autoHideAds.forEach(function(adContainer) {
+                    setTimeout(function() {
+                        if (adContainer && adContainer.style) {
+                            adContainer.style.transition = 'opacity 0.5s';
+                            adContainer.style.opacity = '0.8';
+                        }
+                    }, 10000); // Hide after 10 seconds
+                });
+            });
+            
+            // Lazy load ads for better performance
+            function lazyLoadAds() {
+                const adsToLoad = document.querySelectorAll('[data-ad-lazy]');
+                const observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            const adElement = entry.target;
+                            const adCode = adElement.dataset.adCode;
+                            if (adCode) {
+                                adElement.innerHTML = adCode;
+                                observer.unobserve(adElement);
+                            }
+                        }
+                    });
+                });
+                
+                adsToLoad.forEach(function(ad) {
+                    observer.observe(ad);
+                });
+            }
+            
+            // Initialize lazy loading
+            if (window.IntersectionObserver) {
+                lazyLoadAds();
+            }
+            
+            // AdSense optimization
+            if (typeof adsbygoogle !== 'undefined') {
+                // Push all AdSense ads
+                (adsbygoogle = window.adsbygoogle || []).push({});
+            }
+            
+        })();
+    </script>
 </body>
 </html>

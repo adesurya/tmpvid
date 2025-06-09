@@ -27,21 +27,42 @@
             top: 0;
             overflow-y: auto;
             z-index: 1000;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
         }
 
         .sidebar-header {
             padding: 20px;
             text-align: center;
             border-bottom: 1px solid #34495e;
+            background: #1a252f;
         }
 
         .sidebar-header h3 {
             color: #ecf0f1;
             font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header .version {
+            color: #95a5a6;
+            font-size: 12px;
         }
 
         .sidebar-menu {
             padding: 20px 0;
+        }
+
+        .menu-section {
+            margin-bottom: 30px;
+        }
+
+        .menu-section-title {
+            padding: 0 25px 10px;
+            color: #7f8c8d;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
         }
 
         .menu-item {
@@ -51,6 +72,7 @@
             text-decoration: none;
             transition: all 0.3s;
             border-left: 3px solid transparent;
+            position: relative;
         }
 
         .menu-item:hover,
@@ -62,7 +84,26 @@
 
         .menu-item i {
             width: 20px;
-            margin-right: 10px;
+            margin-right: 12px;
+            text-align: center;
+        }
+
+        .menu-item .badge {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #e74c3c;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .menu-item.new .badge {
+            background: #27ae60;
         }
 
         .main-content {
@@ -83,12 +124,34 @@
         .header h1 {
             color: #2c3e50;
             font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .header-actions {
             display: flex;
             gap: 15px;
             align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #7f8c8d;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
         }
 
         .btn {
@@ -102,6 +165,7 @@
             gap: 8px;
             font-size: 14px;
             transition: all 0.3s;
+            font-weight: 500;
         }
 
         .btn-primary {
@@ -111,6 +175,7 @@
 
         .btn-primary:hover {
             background: #2980b9;
+            transform: translateY(-1px);
         }
 
         .btn-danger {
@@ -120,6 +185,17 @@
 
         .btn-danger:hover {
             background: #c0392b;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+            transform: translateY(-1px);
         }
 
         .content {
@@ -131,6 +207,9 @@
             border-radius: 5px;
             margin-bottom: 20px;
             border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .alert-success {
@@ -163,6 +242,41 @@
             margin-bottom: 20px;
         }
 
+        /* API Integration Indicator */
+        .api-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .api-status.error {
+            background: #e74c3c;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -176,48 +290,131 @@
             .main-content {
                 margin-left: 0;
             }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .menu-toggle {
+                display: block;
+                background: none;
+                border: none;
+                color: #2c3e50;
+                font-size: 20px;
+                cursor: pointer;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .menu-toggle {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
     <!-- Sidebar -->
-    <nav class="sidebar">
+    <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h3>Admin Panel</h3>
+            <h3><i class="fas fa-video"></i> VideoApp</h3>
+            <div class="version">Admin Panel v2.0</div>
         </div>
         <div class="sidebar-menu">
-            <a href="/admin" class="menu-item <%= title === 'Admin Dashboard' ? 'active' : '' %>">
-                <i class="fas fa-tachometer-alt"></i>
-                Dashboard
-            </a>
-            <a href="/admin/videos" class="menu-item <%= title === 'Manage Videos' ? 'active' : '' %>">
-                <i class="fas fa-video"></i>
-                Videos
-            </a>
-            <a href="/admin/categories" class="menu-item <%= title === 'Manage Categories' ? 'active' : '' %>">
-                <i class="fas fa-tags"></i>
-                Categories
-            </a>
-            <a href="/admin/series" class="menu-item <%= title === 'Manage Series' ? 'active' : '' %>">
-                <i class="fas fa-list"></i>
-                Series
-            </a>
-            <a href="/admin/users" class="menu-item <%= title === 'Manage Users' ? 'active' : '' %>">
-                <i class="fas fa-users"></i>
-                Users
-            </a>
-            <a href="/admin/analytics" class="menu-item <%= title === 'Analytics' ? 'active' : '' %>">
-                <i class="fas fa-chart-bar"></i>
-                Analytics
-            </a>
-            <a href="/admin/settings" class="menu-item <%= title === 'Settings' ? 'active' : '' %>">
-                <i class="fas fa-cog"></i>
-                Settings
-            </a>
-            <a href="/" class="menu-item">
-                <i class="fas fa-home"></i>
-                View Site
-            </a>
+            <!-- Main Section -->
+            <div class="menu-section">
+                <div class="menu-section-title">Dashboard</div>
+                <a href="/admin" class="menu-item <%= title === 'Admin Dashboard' ? 'active' : '' %>">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </a>
+            </div>
+
+            <!-- Content Management -->
+            <div class="menu-section">
+                <div class="menu-section-title">Content Management</div>
+                <a href="/admin/videos" class="menu-item <%= title === 'Manage Videos' ? 'active' : '' %>">
+                    <i class="fas fa-video"></i>
+                    Videos
+                </a>
+                <a href="/admin/categories" class="menu-item <%= title === 'Manage Categories' ? 'active' : '' %>">
+                    <i class="fas fa-tags"></i>
+                    Categories
+                </a>
+                <a href="/admin/series" class="menu-item <%= title === 'Manage Series' ? 'active' : '' %>">
+                    <i class="fas fa-list"></i>
+                    Series
+                </a>
+            </div>
+
+            <!-- User Management -->
+            <div class="menu-section">
+                <div class="menu-section-title">User Management</div>
+                <a href="/admin/users" class="menu-item <%= title === 'Manage Users' ? 'active' : '' %>">
+                    <i class="fas fa-users"></i>
+                    Users
+                </a>
+            </div>
+
+            <!-- Analytics & Reports -->
+            <div class="menu-section">
+                <div class="menu-section-title">Analytics & Reports</div>
+                <a href="/admin/analytics" class="menu-item <%= title === 'Analytics' ? 'active' : '' %>">
+                    <i class="fas fa-chart-bar"></i>
+                    Analytics
+                </a>
+            </div>
+
+            <!-- Monetization (NEW) -->
+            <div class="menu-section">
+                <div class="menu-section-title">Monetization</div>
+                <a href="/admin/ads" class="menu-item new <%= title === 'Google Ads Management' ? 'active' : '' %>">
+                    <i class="fab fa-google"></i>
+                    Google Ads
+                    <span class="badge">NEW</span>
+                </a>
+            </div>
+
+            <!-- API & Integration (NEW) -->
+            <div class="menu-section">
+                <div class="menu-section-title">API & Integration</div>
+                <a href="/admin/api-dashboard" class="menu-item new <%= title === 'API Dashboard' ? 'active' : '' %>">
+                    <i class="fas fa-code"></i>
+                    API Dashboard
+                    <span class="badge">NEW</span>
+                </a>
+                <a href="/api/public/docs" target="_blank" class="menu-item">
+                    <i class="fas fa-book"></i>
+                    API Documentation
+                    <i class="fas fa-external-link-alt" style="margin-left: auto; font-size: 10px;"></i>
+                </a>
+                <a href="/api/public/rss" target="_blank" class="menu-item">
+                    <i class="fas fa-rss"></i>
+                    RSS Feed
+                    <i class="fas fa-external-link-alt" style="margin-left: auto; font-size: 10px;"></i>
+                </a>
+            </div>
+
+            <!-- Settings & System -->
+            <div class="menu-section">
+                <div class="menu-section-title">System</div>
+                <a href="/admin/settings" class="menu-item <%= title === 'Settings' ? 'active' : '' %>">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </a>
+                <a href="/" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    View Website
+                    <i class="fas fa-external-link-alt" style="margin-left: auto; font-size: 10px;"></i>
+                </a>
+            </div>
         </div>
     </nav>
 
@@ -225,10 +422,31 @@
     <div class="main-content">
         <!-- Header -->
         <header class="header">
-            <h1><%= title || 'Admin Dashboard' %></h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>
+                    <% if (title === 'Google Ads Management') { %>
+                        <i class="fab fa-google" style="color: #4285f4;"></i>
+                    <% } else if (title === 'API Dashboard') { %>
+                        <i class="fas fa-code" style="color: #27ae60;"></i>
+                    <% } else if (title === 'Analytics') { %>
+                        <i class="fas fa-chart-bar" style="color: #f39c12;"></i>
+                    <% } else { %>
+                        <i class="fas fa-tachometer-alt" style="color: #3498db;"></i>
+                    <% } %>
+                    <%= title || 'Admin Dashboard' %>
+                </h1>
+            </div>
             <div class="header-actions">
                 <% if (typeof user !== 'undefined' && user) { %>
-                    <span>Welcome, <%= user.username %>!</span>
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <%= user.username.charAt(0).toUpperCase() %>
+                        </div>
+                        <span>Welcome, <strong><%= user.username %></strong>!</span>
+                    </div>
                 <% } %>
                 <a href="/" class="btn btn-primary">
                     <i class="fas fa-eye"></i>
@@ -247,19 +465,92 @@
             <% if (typeof success_msg !== 'undefined' && success_msg) { %>
                 <div class="alert alert-success">
                     <i class="fas fa-check-circle"></i>
-                    <%= success_msg %>
+                    <span><%= success_msg %></span>
                 </div>
             <% } %>
             
             <% if (typeof error_msg !== 'undefined' && error_msg) { %>
                 <div class="alert alert-error">
                     <i class="fas fa-exclamation-circle"></i>
-                    <%= error_msg %>
+                    <span><%= error_msg %></span>
                 </div>
             <% } %>
 
             <%- body %>
         </div>
     </div>
+
+    <!-- API Status Indicator -->
+    <div class="api-status" id="apiStatus">
+        <div class="pulse"></div>
+        <span>API Ready</span>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('menuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const menuToggle = document.getElementById('menuToggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('mobile-open');
+            }
+        });
+
+        // Check API status
+        function checkApiStatus() {
+            const apiStatus = document.getElementById('apiStatus');
+            
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        apiStatus.className = 'api-status';
+                        apiStatus.innerHTML = '<div class="pulse"></div><span>API Online</span>';
+                    } else {
+                        throw new Error('API Error');
+                    }
+                })
+                .catch(error => {
+                    apiStatus.className = 'api-status error';
+                    apiStatus.innerHTML = '<div class="pulse"></div><span>API Offline</span>';
+                });
+        }
+
+        // Check API status on load and every 30 seconds
+        checkApiStatus();
+        setInterval(checkApiStatus, 30000);
+
+        // Auto-hide flash messages after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.style.transition = 'opacity 0.5s';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+
+        // Add loading states to buttons
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.type === 'submit') {
+                    this.style.opacity = '0.7';
+                    this.style.pointerEvents = 'none';
+                    
+                    setTimeout(() => {
+                        this.style.opacity = '1';
+                        this.style.pointerEvents = 'auto';
+                    }, 2000);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
