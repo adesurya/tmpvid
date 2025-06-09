@@ -46,6 +46,125 @@
     <link rel="stylesheet" href="/css/main.css">
     
     <style>
+        /* Search Modal - FIXED STYLING */
+        .search-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 80px;
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .search-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .search-content {
+            background: rgba(22, 24, 35, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .search-modal.show .search-content {
+            transform: scale(1);
+        }
+
+        /* Search Clear Button - FIXED */
+        .search-clear {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s ease;
+            padding: 5px;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-clear.show {
+            opacity: 1;
+        }
+
+        /* Results styling */
+        .results-grid {
+            display: grid;
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .result-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .result-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(254, 44, 85, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(254, 44, 85, 0.2);
+        }
+
+        .result-thumbnail {
+            width: 80px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .result-info {
+            flex: 1;
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .result-meta {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 5px;
+        }
+
         /* Enhanced styles for better navigation */
         .video-container {
             position: relative;
@@ -290,6 +409,49 @@
             <div class="spinner"></div>
             <p>Loading more videos...</p>
         </div>
+
+        <!-- Search Modal -->
+        <div class="search-modal" id="searchModal">
+            <div class="search-content">
+                <div class="search-header">
+                    <h3><i class="fas fa-search"></i> Search Videos</h3>
+                    <button class="search-close" id="searchClose" type="button">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form class="search-form" id="searchForm">
+                    <div class="search-input-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input 
+                            type="text" 
+                            class="search-input" 
+                            id="searchInput" 
+                            placeholder="Search for videos, creators, or topics..." 
+                            autocomplete="off"
+                            autocapitalize="off"
+                            spellcheck="false"
+                        >
+                        <button type="button" class="search-clear" id="searchClear">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <button type="submit" class="search-btn" id="searchSubmitBtn">
+                        <i class="fas fa-search"></i>
+                        <span>Search</span>
+                    </button>
+                </form>
+
+                <div class="search-results" id="searchResults">
+                    <div class="no-query-state">
+                        <i class="fas fa-search"></i>
+                        <h3>Search Videos</h3>
+                        <p>Enter keywords above to find amazing videos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -305,6 +467,8 @@
         let scrollTimeout;
         let mutationObserver;
         let wasPlayingBeforeBlur = false;
+        let isSearching = false;
+        let searchTimeout = null;
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -313,12 +477,12 @@
 
         function initializeApp() {
             setupGlobalEventListeners();
+            setupSearchFunctionality(); // ✅ PENTING: Pastikan ini ada
             initializeVideoPlayer();
             setupIntersectionObserver();
             setupSwipeNavigation();
             setupMutationObserver();
             
-            // Delay initial play to ensure everything is loaded
             setTimeout(() => {
                 playCurrentVideo();
             }, 500);
@@ -337,8 +501,8 @@
                 searchBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Search button clicked - navigating to /search');
-                    window.location.href = '/search';
+                    console.log('Search button clicked - opening modal');
+                    openSearchModal(); // ✅ Buka modal search
                 });
             }
             
@@ -1313,6 +1477,317 @@
             }
         `;
         document.head.appendChild(style);
+
+        // Search functionality - FIXED VERSION
+        function setupSearchFunctionality() {
+            console.log('🔧 Setting up search functionality...');
+            
+            // Get all elements
+            const searchBtn = document.getElementById('searchBtn');
+            const searchModal = document.getElementById('searchModal');
+            const searchClose = document.getElementById('searchClose');
+            const searchForm = document.getElementById('searchForm');
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+
+            // Verify elements exist
+            if (!searchBtn || !searchModal || !searchClose || !searchForm || !searchInput || !searchClear) {
+                console.error('❌ Missing search elements!');
+                return;
+            }
+
+            // 1. Search button - Open modal
+            searchBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔍 Search button clicked');
+                openSearchModal();
+            });
+
+            // 2. Close modal events
+            searchClose.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSearchModal();
+            });
+            
+            searchModal.addEventListener('click', function(e) {
+                if (e.target === searchModal) {
+                    closeSearchModal();
+                }
+            });
+
+            // 3. Search form submission
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                performSearch();
+            });
+
+            // 4. Search input events
+            searchInput.addEventListener('input', function(e) {
+                const query = e.target.value.trim();
+                updateClearButton();
+                
+                // Clear previous timeout
+                clearTimeout(searchTimeout);
+                
+                if (query.length === 0) {
+                    showNoQueryState();
+                    return;
+                }
+                
+                // Auto-search after user stops typing
+                searchTimeout = setTimeout(() => {
+                    if (query.length >= 2) {
+                        performSearch();
+                    }
+                }, 800);
+            });
+
+            // 5. Clear button
+            searchClear.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                searchInput.value = '';
+                searchInput.focus();
+                updateClearButton();
+                showNoQueryState();
+            });
+
+            // 6. Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && searchModal.classList.contains('show')) {
+                    closeSearchModal();
+                }
+                
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    openSearchModal();
+                }
+            });
+
+            console.log('✅ Search functionality setup complete!');
+        }
+
+        function openSearchModal() {
+            const searchModal = document.getElementById('searchModal');
+            const searchInput = document.getElementById('searchInput');
+            
+            if (!searchModal || !searchInput) return;
+            
+            // Show modal with animation
+            searchModal.style.display = 'flex';
+            
+            setTimeout(() => {
+                searchModal.classList.add('show');
+            }, 10);
+            
+            // Focus on input after animation
+            setTimeout(() => {
+                searchInput.focus();
+            }, 150);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSearchModal() {
+            const searchModal = document.getElementById('searchModal');
+            const searchInput = document.getElementById('searchInput');
+            
+            if (!searchModal || !searchInput) return;
+            
+            // Hide modal with animation
+            searchModal.classList.remove('show');
+            
+            setTimeout(() => {
+                searchModal.style.display = 'none';
+            }, 300);
+            
+            // Clear search and reset state
+            searchInput.value = '';
+            updateClearButton();
+            showNoQueryState();
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
+        }
+
+        function updateClearButton() {
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+            
+            if (!searchInput || !searchClear) return;
+            
+            if (searchInput.value.trim().length > 0) {
+                searchClear.classList.add('show');
+            } else {
+                searchClear.classList.remove('show');
+            }
+        }
+
+        async function performSearch() {
+            if (isSearching) return;
+
+            const searchInput = document.getElementById('searchInput');
+            const query = searchInput ? searchInput.value.trim() : '';
+
+            if (!query || query.length < 2) {
+                showToast('Please enter at least 2 characters', 'warning');
+                return;
+            }
+
+            isSearching = true;
+            
+            // Update search button state
+            const searchBtn = document.getElementById('searchSubmitBtn');
+            let originalContent = '';
+            
+            if (searchBtn) {
+                originalContent = searchBtn.innerHTML;
+                searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Searching...</span>';
+                searchBtn.disabled = true;
+            }
+
+            // Show loading state
+            showLoadingState();
+
+            try {
+                console.log('🚀 Searching for:', query);
+                
+                // REAL API call to your backend
+                const response = await fetch(`/api/videos/search?q=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySearchResults(data.data || [], query);
+                } else {
+                    throw new Error(data.message || 'Search failed');
+                }
+                
+            } catch (error) {
+                console.error('❌ Search error:', error);
+                showErrorState('Search failed. Please try again.');
+            } finally {
+                isSearching = false;
+                
+                // Restore search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = originalContent;
+                    searchBtn.disabled = false;
+                }
+            }
+        }
+
+        function displaySearchResults(results, query) {
+            const searchResults = document.getElementById('searchResults');
+            if (!searchResults) return;
+            
+            if (!results || results.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <h3>No results found</h3>
+                        <p>No videos found for "${query}". Try different keywords.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            searchResults.innerHTML = `
+                <div class="results-header">
+                    <div class="results-count">Found ${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"</div>
+                </div>
+                <div class="results-grid">
+                    ${results.map(video => `
+                        <div class="result-item" onclick="goToVideo('${video.slug || video.id}', '${video.title}')">
+                            <div class="result-thumbnail">
+                                ${video.thumbnail ? 
+                                    `<img src="${video.thumbnail}" alt="${video.title}" loading="lazy">` :
+                                    `<div style="width:100%;height:100%;background:#333;display:flex;align-items:center;justify-content:center;color:#666;"><i class="fas fa-play"></i></div>`
+                                }
+                            </div>
+                            <div class="result-info">
+                                <div class="result-title">${video.title}</div>
+                                <div class="result-meta">
+                                    <span><i class="fas fa-eye"></i> ${formatNumber(video.views_count || 0)}</span>
+                                    <span><i class="fas fa-heart"></i> ${formatNumber(video.likes_count || 0)}</span>
+                                    ${video.username ? `<span><i class="fas fa-user"></i> @${video.username}</span>` : ''}
+                                </div>
+                                ${video.description ? `<div class="result-description">${video.description}</div>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function goToVideo(slug, title) {
+            console.log('🎬 Navigating to video:', slug);
+            closeSearchModal();
+            window.location.href = `/video/${slug}`;
+        }
+
+        // Helper functions
+        function showLoadingState() {
+            const searchResults = document.getElementById('searchResults');
+            if (!searchResults) return;
+            
+            searchResults.innerHTML = `
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Searching videos...</p>
+                </div>
+            `;
+        }
+
+        function showErrorState(message) {
+            const searchResults = document.getElementById('searchResults');
+            if (!searchResults) return;
+            
+            searchResults.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Search Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function showNoQueryState() {
+            const searchResults = document.getElementById('searchResults');
+            if (!searchResults) return;
+            
+            searchResults.innerHTML = `
+                <div class="no-query-state">
+                    <i class="fas fa-search"></i>
+                    <h3>Search Videos</h3>
+                    <p>Enter keywords above to find amazing videos</p>
+                </div>
+            `;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+    
     </script>
 </body>
 </html>

@@ -277,6 +277,8 @@ class VideoController {
         try {
             const { q, category, sort, page } = req.query;
             
+            console.log('Search request:', { q, category, sort, page });
+            
             if (!q || q.trim().length === 0) {
                 if (req.originalUrl.startsWith('/api/')) {
                     return res.json({
@@ -295,10 +297,11 @@ class VideoController {
                 sortBy: sort || 'relevance'
             };
             
-            console.log('Searching for:', q.trim(), 'with options:', searchOptions);
+            console.log('Searching with options:', searchOptions);
             
             const result = await Video.search(q.trim(), searchOptions);
-            const categories = await Category.getAll();
+            
+            console.log('Search result:', result.data?.length || 0, 'videos found');
             
             if (req.xhr || req.headers.accept.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
                 return res.json({
@@ -308,6 +311,9 @@ class VideoController {
                     searchQuery: q.trim()
                 });
             }
+            
+            // Render HTML for non-API requests
+            const categories = await Category.getAll();
             
             res.render('search', {
                 title: `Search Results for "${q}"`,
@@ -319,6 +325,7 @@ class VideoController {
                 selectedSort: searchOptions.sortBy,
                 layout: 'layouts/main'
             });
+            
         } catch (error) {
             console.error('Search error:', error);
             
