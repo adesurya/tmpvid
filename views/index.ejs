@@ -124,10 +124,10 @@
         <nav class="top-nav">
             <a href="/" class="logo">VideoApp</a>
             <div class="nav-icons">
-                <button class="nav-icon" id="searchBtn">
+                <button class="nav-icon" id="searchBtn" type="button">
                     <i class="fas fa-search"></i>
                 </button>
-                <button class="nav-icon" id="menuBtn">
+                <button class="nav-icon" id="menuBtn" type="button">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
@@ -165,7 +165,7 @@
         </nav>
 
         <!-- Video Container -->
-        <div class="video-container" id="videoContainer" data-delegation-active="true">
+        <div class="video-container" id="videoContainer">
             <% if (videos && videos.length > 0) { %>
                 <% videos.forEach((video, index) => { %>
                     <div class="video-item" data-video-id="<%= video.id %>" data-index="<%= index %>" data-video-slug="<%= video.slug || video.id %>">
@@ -185,26 +185,26 @@
 
                         <!-- Video Controls -->
                         <div class="video-controls">
-                            <button class="play-pause-btn" data-video-id="<%= video.id %>">
+                            <button class="play-pause-btn" data-video-id="<%= video.id %>" type="button">
                                 <i class="fas fa-play" id="play-icon-<%= video.id %>"></i>
                             </button>
                         </div>
 
                         <!-- Side Actions -->
                         <div class="side-actions">
-                            <button class="action-btn like-btn" data-video-id="<%= video.id %>">
+                            <button class="action-btn like-btn" data-video-id="<%= video.id %>" type="button">
                                 <i class="fas fa-heart"></i>
                                 <span class="like-count"><%= video.likes_count || 0 %></span>
                             </button>
-                            <button class="action-btn comment-btn" data-video-id="<%= video.id %>">
+                            <button class="action-btn comment-btn" data-video-id="<%= video.id %>" type="button">
                                 <i class="fas fa-comment"></i>
                                 <span class="comment-count">0</span>
                             </button>
-                            <button class="action-btn share-btn" data-video-id="<%= video.id %>" data-video-title="<%= video.title %>" data-video-slug="<%= video.slug || video.id %>">
+                            <button class="action-btn share-btn" data-video-id="<%= video.id %>" data-video-title="<%= video.title %>" data-video-slug="<%= video.slug || video.id %>" type="button">
                                 <i class="fas fa-share"></i>
                                 <span class="share-count"><%= video.shares_count || 0 %></span>
                             </button>
-                            <button class="action-btn sound-btn" data-video-id="<%= video.id %>">
+                            <button class="action-btn sound-btn" data-video-id="<%= video.id %>" type="button">
                                 <i class="fas fa-volume-mute" id="sound-icon-<%= video.id %>"></i>
                                 <span>Sound</span>
                             </button>
@@ -239,7 +239,7 @@
                         Be the first to share amazing content!<br>
                         Upload videos to get started.
                     </p>
-                    <button class="empty-button" id="goToAdminBtn">
+                    <button class="empty-button" id="goToAdminBtn" type="button">
                         Go to Admin Dashboard
                     </button>
                 </div>
@@ -251,33 +251,33 @@
             <div class="share-content">
                 <div class="share-header">
                     <h3>Share Video</h3>
-                    <button class="share-close" id="shareClose">
+                    <button class="share-close" id="shareClose" type="button">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <div id="shareVideoTitle" style="margin-bottom: 15px; color: #ccc; text-align: center; font-size: 14px;"></div>
                 <div class="share-options">
-                    <button class="share-option" data-platform="copy">
+                    <button class="share-option" data-platform="copy" type="button">
                         <i class="fas fa-link"></i>
                         <span>Copy Link</span>
                     </button>
-                    <button class="share-option" data-platform="whatsapp">
+                    <button class="share-option" data-platform="whatsapp" type="button">
                         <i class="fab fa-whatsapp"></i>
                         <span>WhatsApp</span>
                     </button>
-                    <button class="share-option" data-platform="twitter">
+                    <button class="share-option" data-platform="twitter" type="button">
                         <i class="fab fa-twitter"></i>
                         <span>Twitter</span>
                     </button>
-                    <button class="share-option" data-platform="facebook">
+                    <button class="share-option" data-platform="facebook" type="button">
                         <i class="fab fa-facebook"></i>
                         <span>Facebook</span>
                     </button>
-                    <button class="share-option" data-platform="telegram">
+                    <button class="share-option" data-platform="telegram" type="button">
                         <i class="fab fa-telegram"></i>
                         <span>Telegram</span>
                     </button>
-                    <button class="share-option" data-platform="linkedin">
+                    <button class="share-option" data-platform="linkedin" type="button">
                         <i class="fab fa-linkedin"></i>
                         <span>LinkedIn</span>
                     </button>
@@ -324,30 +324,21 @@
             }, 500);
         }
 
-        // FIXED: Navigation functions - Search button issue
-        function openSearch() {
-            // Prevent default page refresh behavior
-            event.preventDefault();
-            event.stopPropagation();
-            
-            console.log('Opening search page...');
-            window.location.href = '/search';
-        }
-
         function setupGlobalEventListeners() {
-            // Navigation buttons - FIXED: Proper event handling
+            // Navigation buttons - FIXED: Direct event binding
             const searchBtn = document.getElementById('searchBtn');
             const menuBtn = document.getElementById('menuBtn');
             const goToAdminBtn = document.getElementById('goToAdminBtn');
             const sidebarClose = document.getElementById('sidebarClose');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
 
+            // FIXED: Search button - simple and direct
             if (searchBtn) {
-                // FIXED: Prevent form submission behavior
                 searchBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    openSearch();
+                    console.log('Search button clicked - navigating to /search');
+                    window.location.href = '/search';
                 });
             }
             
@@ -389,12 +380,13 @@
                 });
             }
 
-            // FIXED: Use persistent event delegation
-            setupPersistentEventDelegation();
+            // FIXED: Video interaction event delegation
+            setupVideoEventDelegation();
 
             // Share options
             document.querySelectorAll('.share-option').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
                     shareToPlat_form(this.dataset.platform);
                 });
             });
@@ -409,59 +401,51 @@
             window.addEventListener('beforeunload', cleanup);
 
             // Scroll optimization
-            document.getElementById('videoContainer').addEventListener('scroll', handleScroll, { passive: true });
+            const videoContainer = document.getElementById('videoContainer');
+            if (videoContainer) {
+                videoContainer.addEventListener('scroll', handleScroll, { passive: true });
+            }
 
             // Network events
             window.addEventListener('online', handleOnline);
             window.addEventListener('offline', handleOffline);
         }
 
-        // FIXED: Improved event delegation that persists across all interactions
-        function setupPersistentEventDelegation() {
-            // Remove any existing listeners first
-            document.removeEventListener('click', handleVideoInteraction, true);
-            document.removeEventListener('touchstart', handleVideoInteraction, true);
+        // FIXED: Simplified video event delegation
+        function setupVideoEventDelegation() {
+            const videoContainer = document.getElementById('videoContainer');
             
-            // Add both click and touch events for better mobile support
-            document.addEventListener('click', handleVideoInteraction, true);
-            document.addEventListener('touchstart', handleVideoInteraction, true);
-            
-            console.log('Event delegation setup complete');
-        }
+            if (videoContainer) {
+                videoContainer.addEventListener('click', function(e) {
+                    const target = e.target.closest('.play-pause-btn, .main-video, .like-btn, .comment-btn, .share-btn, .sound-btn');
+                    
+                    if (!target) return;
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
 
-        function handleVideoInteraction(e) {
-            // Prevent handling touch and click for same action
-            if (e.type === 'touchstart' && e.target.closest('.action-btn, .play-pause-btn')) {
-                e.preventDefault();
-            }
+                    const videoItem = target.closest('.video-item');
+                    if (!videoItem) return;
 
-            const target = e.target.closest('.play-pause-btn, .main-video, .like-btn, .comment-btn, .share-btn, .sound-btn');
-            
-            if (!target) return;
-
-            // Only handle the first touch/click
-            if (e.type === 'click' && e.detail === 0) return; // Ignore programmatic clicks
-
-            const videoItem = target.closest('.video-item');
-            if (!videoItem) return;
-
-            const videoId = videoItem.dataset.videoId;
-            
-            console.log('Video interaction:', target.className, 'for video:', videoId, 'event:', e.type);
-            
-            // Handle different button types
-            if (target.classList.contains('play-pause-btn') || target.classList.contains('main-video')) {
-                togglePlayPause(videoId);
-            } else if (target.classList.contains('like-btn')) {
-                toggleLike(videoId);
-            } else if (target.classList.contains('comment-btn')) {
-                openComments(videoId);
-            } else if (target.classList.contains('share-btn')) {
-                const videoTitle = target.dataset.videoTitle || '';
-                const videoSlug = target.dataset.videoSlug || videoId;
-                openShareModal(videoId, videoTitle, videoSlug);
-            } else if (target.classList.contains('sound-btn')) {
-                toggleSound(videoId);
+                    const videoId = videoItem.dataset.videoId;
+                    
+                    console.log('Video interaction:', target.className, 'for video:', videoId);
+                    
+                    // Handle different button types
+                    if (target.classList.contains('play-pause-btn') || target.classList.contains('main-video')) {
+                        togglePlayPause(videoId);
+                    } else if (target.classList.contains('like-btn')) {
+                        toggleLike(videoId);
+                    } else if (target.classList.contains('comment-btn')) {
+                        openComments(videoId);
+                    } else if (target.classList.contains('share-btn')) {
+                        const videoTitle = target.dataset.videoTitle || '';
+                        const videoSlug = target.dataset.videoSlug || videoId;
+                        openShareModal(videoId, videoTitle, videoSlug);
+                    } else if (target.classList.contains('sound-btn')) {
+                        toggleSound(videoId);
+                    }
+                });
             }
         }
 
@@ -584,14 +568,19 @@
                 });
             });
 
-            mutationObserver.observe(document.getElementById('videoContainer'), {
-                childList: true,
-                subtree: true
-            });
+            const videoContainer = document.getElementById('videoContainer');
+            if (videoContainer) {
+                mutationObserver.observe(videoContainer, {
+                    childList: true,
+                    subtree: true
+                });
+            }
         }
 
         function setupSwipeNavigation() {
             const container = document.getElementById('videoContainer');
+            if (!container) return;
+            
             let startY = 0;
             let isScrolling = false;
 
@@ -650,7 +639,10 @@
             if (isLoading) return;
             
             isLoading = true;
-            document.getElementById('loadingState').style.display = 'block';
+            const loadingState = document.getElementById('loadingState');
+            if (loadingState) {
+                loadingState.style.display = 'block';
+            }
             
             try {
                 const page = Math.floor(videos.length / 10) + 1;
@@ -687,7 +679,9 @@
                 showToast('Failed to load more videos', 'error', 4000);
             } finally {
                 isLoading = false;
-                document.getElementById('loadingState').style.display = 'none';
+                if (loadingState) {
+                    loadingState.style.display = 'none';
+                }
             }
         }
         
@@ -712,25 +706,25 @@
                 <div class="video-overlay"></div>
                 
                 <div class="video-controls">
-                    <button class="play-pause-btn" data-video-id="${video.id}">
+                    <button class="play-pause-btn" data-video-id="${video.id}" type="button">
                         <i class="fas fa-play" id="play-icon-${video.id}"></i>
                     </button>
                 </div>
                 
                 <div class="side-actions">
-                    <button class="action-btn like-btn" data-video-id="${video.id}">
+                    <button class="action-btn like-btn" data-video-id="${video.id}" type="button">
                         <i class="fas fa-heart"></i>
                         <span class="like-count">${video.likes_count || 0}</span>
                     </button>
-                    <button class="action-btn comment-btn" data-video-id="${video.id}">
+                    <button class="action-btn comment-btn" data-video-id="${video.id}" type="button">
                         <i class="fas fa-comment"></i>
                         <span class="comment-count">0</span>
                     </button>
-                    <button class="action-btn share-btn" data-video-id="${video.id}" data-video-title="${video.title}" data-video-slug="${video.slug || video.id}">
+                    <button class="action-btn share-btn" data-video-id="${video.id}" data-video-title="${video.title}" data-video-slug="${video.slug || video.id}" type="button">
                         <i class="fas fa-share"></i>
                         <span class="share-count">${video.shares_count || 0}</span>
                     </button>
-                    <button class="action-btn sound-btn" data-video-id="${video.id}">
+                    <button class="action-btn sound-btn" data-video-id="${video.id}" type="button">
                         <i class="fas fa-volume-mute" id="sound-icon-${video.id}"></i>
                         <span>Sound</span>
                     </button>
@@ -750,7 +744,7 @@
             return videoItem;
         }
 
-        // FIXED: Video control functions with enhanced reliability
+        // FIXED: Video control functions
         function togglePlayPause(videoId) {
             console.log('Toggle play/pause for video:', videoId);
             const video = document.getElementById(`video-${videoId}`);
@@ -807,7 +801,7 @@
             }
         }
 
-        // FIXED: Enhanced like functionality with better error handling
+        // FIXED: Enhanced like functionality
         async function toggleLike(videoId) {
             console.log('Toggle like for video:', videoId);
             
@@ -899,12 +893,22 @@
             currentShareVideoTitle = videoTitle;
             currentShareVideoSlug = videoSlug;
             
-            document.getElementById('shareVideoTitle').textContent = videoTitle;
-            document.getElementById('shareModal').classList.add('show');
+            const shareModal = document.getElementById('shareModal');
+            const shareVideoTitle = document.getElementById('shareVideoTitle');
+            
+            if (shareVideoTitle) {
+                shareVideoTitle.textContent = videoTitle;
+            }
+            if (shareModal) {
+                shareModal.classList.add('show');
+            }
         }
 
         function closeShareModal() {
-            document.getElementById('shareModal').classList.remove('show');
+            const shareModal = document.getElementById('shareModal');
+            if (shareModal) {
+                shareModal.classList.remove('show');
+            }
             currentShareVideoId = null;
             currentShareVideoTitle = '';
             currentShareVideoSlug = '';
@@ -997,26 +1001,36 @@
         }
 
         // Navigation functions
-        function openSearch() {
-            // Prevent default page refresh behavior
-            event.preventDefault();
-            event.stopPropagation();
-            
-            console.log('Opening search page...');
-            window.location.href = '/search';
-        }
-
         function openMenu() {
-            document.getElementById('sidebar').classList.add('show');
-            document.getElementById('sidebarOverlay').classList.add('show');
+            console.log('Opening sidebar menu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.add('show');
+                overlay.classList.add('show');
+                
+                // Prevent body scroll when menu is open
+                document.body.style.overflow = 'hidden';
+            }
         }
 
         function closeSidebar() {
-            document.getElementById('sidebar').classList.remove('show');
-            document.getElementById('sidebarOverlay').classList.remove('show');
+            console.log('Closing sidebar menu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+                
+                // Restore body scroll
+                document.body.style.overflow = '';
+            }
         }
 
         function goToAdmin() {
+            console.log('Navigating to admin dashboard');
             window.location.href = '/admin';
         }
 
@@ -1104,12 +1118,8 @@
         function handleScroll() {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
-                // Ensure event delegation is still active
-                const container = document.querySelector('.video-container');
-                if (!container.hasAttribute('data-delegation-active')) {
-                    setupPersistentEventDelegation();
-                    container.setAttribute('data-delegation-active', 'true');
-                }
+                // Ensure event delegation is still active after scroll
+                console.log('Scroll completed');
             }, 100);
         }
 
@@ -1139,6 +1149,7 @@
 
         // Utility functions
         function showToast(message, type = 'info', duration = 3000) {
+            // Remove existing toasts
             const existingToasts = document.querySelectorAll('.toast');
             existingToasts.forEach(toast => {
                 if (!toast.classList.contains('removing')) {
@@ -1253,15 +1264,12 @@
                 mutationObserver.disconnect();
             }
             
-            document.removeEventListener('click', handleVideoInteraction, true);
-            document.removeEventListener('touchstart', handleVideoInteraction, true);
-            
             if (scrollTimeout) {
                 clearTimeout(scrollTimeout);
             }
         }
 
-        // Error handling
+        // Error handling for video loading
         document.addEventListener('error', function(e) {
             if (e.target.tagName === 'VIDEO') {
                 console.error('Video failed to load:', e.target.src);
@@ -1278,6 +1286,33 @@
                 }
             }
         }, true);
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes toastSlideUp {
+                from {
+                    opacity: 0;
+                    transform: translate(-50%, 20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                }
+            }
+            
+            @keyframes toastFadeOut {
+                from {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translate(-50%, 20px);
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>

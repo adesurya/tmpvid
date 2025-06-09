@@ -236,6 +236,7 @@
             text-align: center;
             padding: 100px 20px;
             color: #666;
+            grid-column: 1 / -1;
         }
 
         .empty-trending i {
@@ -248,6 +249,7 @@
             text-align: center;
             padding: 80px 20px;
             color: #888;
+            grid-column: 1 / -1;
         }
 
         .spinner {
@@ -265,6 +267,7 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Mobile Responsive Improvements */
         @media (max-width: 768px) {
             .trending-container {
                 padding: 100px 15px 20px;
@@ -274,24 +277,71 @@
                 font-size: 36px;
             }
 
+            .trending-subtitle {
+                font-size: 16px;
+            }
+
             .trending-grid {
                 grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
                 gap: 20px;
             }
 
             .time-filters {
-                flex-direction: column;
-                align-items: center;
+                gap: 10px;
+            }
+
+            .time-filter {
+                padding: 10px 16px;
+                font-size: 14px;
             }
 
             .video-thumbnail {
                 height: 200px;
             }
+
+            .trending-stats {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .stat-item {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .trending-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .time-filters {
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .time-filter {
+                width: 80%;
+                text-align: center;
+            }
+
+            .video-thumbnail {
+                height: 180px;
+            }
+
+            .trending-info {
+                padding: 15px;
+            }
+
+            .trending-title {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="history.back()">
+    <button class="back-btn" id="backBtn">
         <i class="fas fa-arrow-left"></i>
     </button>
 
@@ -301,72 +351,18 @@
             <p class="trending-subtitle">Discover what's popular right now</p>
             
             <div class="time-filters">
-                <button class="time-filter active" data-timeframe="1">Today</button>
-                <button class="time-filter" data-timeframe="7">This Week</button>
+                <button class="time-filter" data-timeframe="1">Today</button>
+                <button class="time-filter active" data-timeframe="7">This Week</button>
                 <button class="time-filter" data-timeframe="30">This Month</button>
                 <button class="time-filter" data-timeframe="365">This Year</button>
             </div>
         </div>
 
-        <div id="loadingState" class="loading-trending" style="display: none;">
-            <div class="spinner"></div>
-            <p>Loading trending videos...</p>
-        </div>
-
         <div class="trending-grid" id="trendingGrid">
-            <% if (typeof videos !== 'undefined' && videos && videos.length > 0) { %>
-                <% videos.forEach((video, index) => { %>
-                    <div class="trending-item" data-video-id="<%= video.id %>" onclick="openVideo('<%= video.slug %>')">
-                        <div class="trending-rank"><%= index + 1 %></div>
-                        <div class="video-thumbnail">
-                            <% if (video.thumbnail) { %>
-                                <img src="<%= video.thumbnail %>" alt="<%= video.title %>">
-                            <% } else { %>
-                                <video src="<%= video.video_url %>" muted></video>
-                            <% } %>
-                            <div class="play-overlay">
-                                <i class="fas fa-play"></i>
-                            </div>
-                            <% if (video.duration) { %>
-                                <div class="video-duration">
-                                    <%= Math.floor(video.duration / 60) %>:<%= (video.duration % 60).toString().padStart(2, '0') %>
-                                </div>
-                            <% } %>
-                        </div>
-                        <div class="trending-info">
-                            <div class="trending-title"><%= video.title %></div>
-                            <div class="trending-stats">
-                                <div class="stat-item">
-                                    <i class="fas fa-eye"></i>
-                                    <span><%= formatNumber(video.views_count || 0) %></span>
-                                </div>
-                                <div class="stat-item">
-                                    <i class="fas fa-heart"></i>
-                                    <span><%= formatNumber(video.likes_count || 0) %></span>
-                                </div>
-                                <div class="stat-item">
-                                    <i class="fas fa-share"></i>
-                                    <span><%= formatNumber(video.shares_count || 0) %></span>
-                                </div>
-                            </div>
-                            <% if (video.username) { %>
-                                <div class="trending-creator">
-                                    <div class="creator-avatar">
-                                        <%= video.username.charAt(0).toUpperCase() %>
-                                    </div>
-                                    @<%= video.username %>
-                                </div>
-                            <% } %>
-                        </div>
-                    </div>
-                <% }); %>
-            <% } else { %>
-                <div class="empty-trending">
-                    <i class="fas fa-fire-flame-curved"></i>
-                    <h3>No Trending Videos Yet</h3>
-                    <p>Check back later for trending content</p>
-                </div>
-            <% } %>
+            <div class="loading-trending">
+                <div class="spinner"></div>
+                <p>Loading trending videos...</p>
+            </div>
         </div>
     </div>
 
@@ -376,18 +372,19 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
-            
-            // Load trending videos if none are displayed
-            const grid = document.getElementById('trendingGrid');
-            if (!grid.children.length || grid.querySelector('.empty-trending')) {
-                loadTrendingVideos(currentTimeframe);
-            }
-
-            // Add hover effects for video previews
-            addVideoPreviewEffects();
+            loadTrendingVideos(currentTimeframe);
         });
 
         function setupEventListeners() {
+            // Back button - FIXED to use proper navigation
+            document.getElementById('backBtn').addEventListener('click', function() {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = '/';
+                }
+            });
+
             // Time filter buttons
             document.querySelectorAll('.time-filter').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -410,10 +407,17 @@
             currentTimeframe = timeframe;
             
             // Show loading state
-            document.getElementById('loadingState').style.display = 'block';
-            document.getElementById('trendingGrid').style.opacity = '0.5';
+            const grid = document.getElementById('trendingGrid');
+            grid.innerHTML = `
+                <div class="loading-trending">
+                    <div class="spinner"></div>
+                    <p>Loading trending videos...</p>
+                </div>
+            `;
 
             try {
+                console.log(`Loading trending videos for timeframe: ${timeframe} days`);
+                
                 const response = await fetch(`/api/videos/trending?timeFrame=${timeframe}&limit=20`);
                 
                 if (!response.ok) {
@@ -421,6 +425,7 @@
                 }
 
                 const data = await response.json();
+                console.log('Trending API response:', data);
                 
                 if (data.success) {
                     displayTrendingVideos(data.data || []);
@@ -429,11 +434,25 @@
                 }
             } catch (error) {
                 console.error('Load trending error:', error);
-                showError('Failed to load trending videos. Please try again.');
+                showError('Failed to load trending videos. Loading popular videos instead...');
+                
+                // Fallback: Try to load popular videos instead
+                try {
+                    const fallbackResponse = await fetch('/api/videos/feed?limit=20');
+                    const fallbackData = await fallbackResponse.json();
+                    
+                    if (fallbackData.success && fallbackData.data && fallbackData.data.length > 0) {
+                        console.log('Using fallback popular videos');
+                        displayTrendingVideos(fallbackData.data);
+                    } else {
+                        showEmptyState();
+                    }
+                } catch (fallbackError) {
+                    console.error('Fallback also failed:', fallbackError);
+                    showEmptyState();
+                }
             } finally {
                 isLoading = false;
-                document.getElementById('loadingState').style.display = 'none';
-                document.getElementById('trendingGrid').style.opacity = '1';
             }
         }
 
@@ -441,29 +460,25 @@
             const grid = document.getElementById('trendingGrid');
             
             if (!videos || videos.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-trending">
-                        <i class="fas fa-fire-flame-curved"></i>
-                        <h3>No Trending Videos</h3>
-                        <p>No trending videos found for this timeframe</p>
-                    </div>
-                `;
+                showEmptyState();
                 return;
             }
 
+            console.log(`Displaying ${videos.length} trending videos`);
+
             grid.innerHTML = videos.map((video, index) => `
-                <div class="trending-item" data-video-id="${video.id}" onclick="openVideo('${video.slug}')">
+                <div class="trending-item" data-video-id="${video.id}" data-video-slug="${video.slug || video.id}">
                     <div class="trending-rank">${index + 1}</div>
                     <div class="video-thumbnail">
                         ${video.thumbnail ? 
-                            `<img src="${video.thumbnail}" alt="${video.title}">` :
-                            `<video src="${video.video_url}" muted></video>`
+                            `<img src="${video.thumbnail}" alt="${video.title}" loading="lazy">` :
+                            `<video src="${video.video_url}" muted preload="metadata"></video>`
                         }
                         <div class="play-overlay">
                             <i class="fas fa-play"></i>
                         </div>
                         ${video.duration ? 
-                            `<div class="video-duration">${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}</div>` :
+                            `<div class="video-duration">${formatDuration(video.duration)}</div>` :
                             ''
                         }
                     </div>
@@ -493,8 +508,42 @@
                 </div>
             `).join('');
 
-            // Add hover effects
+            // Add click event listeners
+            document.querySelectorAll('.trending-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const videoSlug = this.dataset.videoSlug;
+                    if (videoSlug) {
+                        window.location.href = `/video/${videoSlug}`;
+                    }
+                });
+            });
+
+            // Add hover effects for video previews
             addVideoPreviewEffects();
+        }
+
+        function showEmptyState() {
+            const grid = document.getElementById('trendingGrid');
+            grid.innerHTML = `
+                <div class="empty-trending">
+                    <i class="fas fa-fire-flame-curved"></i>
+                    <h3>No Trending Videos</h3>
+                    <p>No trending videos found for this timeframe.<br>Try a different time period or check back later.</p>
+                    <button class="time-filter" style="margin-top: 20px;" data-timeframe="365">
+                        View All Time Popular
+                    </button>
+                </div>
+            `;
+            
+            // Add click handler to the button
+            const button = grid.querySelector('.time-filter');
+            if (button) {
+                button.addEventListener('click', function() {
+                    document.querySelectorAll('.time-filters .time-filter').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.time-filters [data-timeframe="365"]').classList.add('active');
+                    loadTrendingVideos('365');
+                });
+            }
         }
 
         function addVideoPreviewEffects() {
@@ -502,7 +551,9 @@
                 const video = item.querySelector('video');
                 if (video) {
                     item.addEventListener('mouseenter', () => {
-                        video.play().catch(() => {});
+                        video.play().catch(() => {
+                            console.log('Video preview play failed');
+                        });
                     });
                     
                     item.addEventListener('mouseleave', () => {
@@ -511,10 +562,6 @@
                     });
                 }
             });
-        }
-
-        function openVideo(slug) {
-            window.location.href = `/video/${slug}`;
         }
 
         function formatNumber(num) {
@@ -526,23 +573,36 @@
             return num.toString();
         }
 
-        function showError(message) {
-            const grid = document.getElementById('trendingGrid');
-            grid.innerHTML = `
-                <div class="empty-trending">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <h3>Error</h3>
-                    <p>${message}</p>
-                    <button onclick="loadTrendingVideos(currentTimeframe)" style="margin-top: 20px; padding: 10px 20px; background: #fe2c55; color: white; border: none; border-radius: 20px; cursor: pointer;">
-                        Try Again
-                    </button>
-                </div>
-            `;
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Add this helper function if not defined globally
-        if (typeof formatNumber === 'undefined') {
-            window.formatNumber = formatNumber;
+        function showError(message) {
+            console.warn(message);
+            
+            // Show a brief error message but continue with fallback
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(255, 193, 7, 0.9);
+                color: #000;
+                padding: 12px 20px;
+                border-radius: 25px;
+                z-index: 1000;
+                font-size: 14px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
         }
     </script>
 </body>

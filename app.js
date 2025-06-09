@@ -26,13 +26,14 @@ initDatabase().then(() => {
     // Don't exit the process, continue without database
 });
 
-// Security middleware - FIXED CSP settings
+// Security middleware - FIXED CSP settings to allow inline event handlers
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com"],
+            scriptSrcAttr: ["'unsafe-inline'"], // FIXED: Allow inline event handlers
             imgSrc: ["'self'", "data:", "https:", "blob:"],
             mediaSrc: ["'self'", "https:", "blob:", "data:"],
             connectSrc: ["'self'"],

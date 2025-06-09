@@ -7,70 +7,199 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
+        /* Search Page Specific Styles */
         .search-container {
             min-height: 100vh;
             background: #000;
             color: #fff;
             padding: 80px 20px 20px;
+            position: relative;
         }
 
         .search-header {
             max-width: 800px;
             margin: 0 auto 40px;
+            position: relative;
+            z-index: 10;
         }
 
         .search-form {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            position: relative;
+        }
+
+        .search-input-container {
+            flex: 1;
+            position: relative;
         }
 
         .search-input {
-            flex: 1;
-            padding: 15px 20px;
+            width: 100%;
+            padding: 15px 20px 15px 50px;
             border: 2px solid #333;
             border-radius: 25px;
-            background: #111;
+            background: rgba(17, 17, 17, 0.95);
             color: #fff;
             font-size: 16px;
             outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
 
         .search-input:focus {
             border-color: #fe2c55;
+            box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.1);
+            background: rgba(17, 17, 17, 1);
+        }
+
+        .search-input::placeholder {
+            color: #888;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s ease;
+            padding: 5px;
+            border-radius: 50%;
+        }
+
+        .search-clear:hover {
+            color: #fe2c55;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .search-clear.show {
+            opacity: 1;
         }
 
         .search-btn {
             padding: 15px 25px;
-            background: #fe2c55;
+            background: linear-gradient(135deg, #fe2c55, #ff6b35);
             color: white;
             border: none;
             border-radius: 25px;
             cursor: pointer;
             font-size: 16px;
             font-weight: 600;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+            justify-content: center;
         }
 
         .search-btn:hover {
-            background: #e0244a;
+            background: linear-gradient(135deg, #e0244a, #e55a2b);
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(254, 44, 85, 0.4);
+        }
+
+        .search-btn:active {
+            transform: translateY(0);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .search-filters {
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .filter-select {
             padding: 10px 15px;
             border: 1px solid #333;
             border-radius: 20px;
-            background: #111;
+            background: rgba(17, 17, 17, 0.95);
             color: #fff;
             font-size: 14px;
             outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .filter-select:focus {
+            border-color: #fe2c55;
+            box-shadow: 0 0 0 2px rgba(254, 44, 85, 0.1);
+        }
+
+        .filter-select option {
+            background: #111;
+            color: #fff;
+        }
+
+        .search-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(17, 17, 17, 0.98);
+            border: 1px solid #333;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(254, 44, 85, 0.1);
+        }
+
+        .suggestion-icon {
+            color: #888;
+            font-size: 14px;
         }
 
         .search-results {
@@ -90,25 +219,40 @@
         .results-count {
             font-size: 18px;
             color: #ccc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .results-sort {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #888;
         }
 
         .results-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
+            min-height: 400px;
         }
 
         .video-card {
-            background: #111;
+            background: rgba(17, 17, 17, 0.8);
             border-radius: 15px;
             overflow: hidden;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             cursor: pointer;
+            border: 2px solid transparent;
+            backdrop-filter: blur(10px);
         }
 
         .video-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(254, 44, 85, 0.3);
+            border-color: rgba(254, 44, 85, 0.5);
         }
 
         .video-thumbnail {
@@ -116,6 +260,7 @@
             width: 100%;
             height: 200px;
             overflow: hidden;
+            background: #222;
         }
 
         .video-thumbnail img,
@@ -123,6 +268,12 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .video-card:hover .video-thumbnail img,
+        .video-card:hover .video-thumbnail video {
+            transform: scale(1.05);
         }
 
         .video-duration {
@@ -134,6 +285,8 @@
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
         }
 
         .play-overlay {
@@ -150,7 +303,8 @@
             justify-content: center;
             font-size: 24px;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px);
         }
 
         .video-card:hover .play-overlay {
@@ -170,6 +324,7 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            color: #fff;
         }
 
         .video-meta {
@@ -179,6 +334,18 @@
             font-size: 12px;
             color: #888;
             margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .video-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .video-meta i {
+            color: #fe2c55;
         }
 
         .video-description {
@@ -191,10 +358,22 @@
             overflow: hidden;
         }
 
+        .video-category {
+            display: inline-block;
+            background: rgba(254, 44, 85, 0.2);
+            color: #fe2c55;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
         .no-results {
             text-align: center;
             padding: 80px 20px;
             color: #888;
+            grid-column: 1 / -1;
         }
 
         .no-results i {
@@ -203,15 +382,28 @@
             color: #444;
         }
 
+        .no-results h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #ccc;
+        }
+
+        .no-results p {
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 60px 20px;
             color: #888;
+            grid-column: 1 / -1;
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             border: 3px solid #333;
             border-top: 3px solid #fe2c55;
             border-radius: 50%;
@@ -237,8 +429,11 @@
             font-size: 20px;
             cursor: pointer;
             backdrop-filter: blur(10px);
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .back-btn:hover {
@@ -246,6 +441,40 @@
             transform: scale(1.1);
         }
 
+        .search-stats {
+            background: rgba(17, 17, 17, 0.8);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .clear-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: rgba(254, 44, 85, 0.2);
+            border-color: #fe2c55;
+            color: #fe2c55;
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
             .search-container {
                 padding: 100px 15px 20px;
@@ -253,10 +482,26 @@
 
             .search-form {
                 flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-btn {
+                width: 100%;
+                justify-content: center;
             }
 
             .search-filters {
-                justify-content: center;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-select {
+                width: 100%;
             }
 
             .results-grid {
@@ -269,64 +514,146 @@
                 gap: 15px;
                 text-align: center;
             }
+
+            .video-thumbnail {
+                height: 180px;
+            }
+
+            .search-stats {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-input {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+
+            .video-thumbnail {
+                height: 200px;
+            }
+
+            .video-info {
+                padding: 12px;
+            }
+
+            .video-title {
+                font-size: 15px;
+            }
+
+            .back-btn {
+                top: 15px;
+                left: 15px;
+                width: 45px;
+                height: 45px;
+            }
+        }
+
+        /* Dark scrollbar */
+        .search-suggestions::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .search-suggestions::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        .search-suggestions::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+
+        .search-suggestions::-webkit-scrollbar-thumb:hover {
+            background: #777;
         }
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="history.back()">
+    <button class="back-btn" id="backBtn">
         <i class="fas fa-arrow-left"></i>
     </button>
 
     <div class="search-container">
         <div class="search-header">
-            <div class="search-form">
-                <input type="text" class="search-input" id="searchInput" placeholder="Search for videos..." value="<%= searchQuery || '' %>">
-                <button class="search-btn" id="searchBtn">
+            <form class="search-form" id="searchForm">
+                <div class="search-input-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input 
+                        type="text" 
+                        class="search-input" 
+                        id="searchInput" 
+                        placeholder="Search for videos, creators, or topics..." 
+                        value="<%= searchQuery || '' %>" 
+                        autocomplete="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                    >
+                    <button type="button" class="search-clear" id="searchClear">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div class="search-suggestions" id="searchSuggestions"></div>
+                </div>
+                <button type="submit" class="search-btn" id="searchBtn">
                     <i class="fas fa-search"></i>
-                    Search
+                    <span>Search</span>
                 </button>
-            </div>
+            </form>
             
             <div class="search-filters">
-                <select class="filter-select" id="categoryFilter">
-                    <option value="">All Categories</option>
-                    <% if (typeof categories !== 'undefined' && categories) { %>
-                        <% categories.forEach(category => { %>
-                            <option value="<%= category.id %>" <%= selectedCategory == category.id ? 'selected' : '' %>>
-                                <%= category.name %>
-                            </option>
-                        <% }); %>
-                    <% } %>
-                </select>
+                <div class="filter-group">
+                    <label class="filter-label">Category</label>
+                    <select class="filter-select" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <% if (typeof categories !== 'undefined' && categories) { %>
+                            <% categories.forEach(category => { %>
+                                <option value="<%= category.id %>" <%= selectedCategory == category.id ? 'selected' : '' %>>
+                                    <%= category.name %>
+                                </option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                </div>
                 
-                <select class="filter-select" id="sortFilter">
-                    <option value="relevance" <%= selectedSort === 'relevance' ? 'selected' : '' %>>Most Relevant</option>
-                    <option value="latest" <%= selectedSort === 'latest' ? 'selected' : '' %>>Latest</option>
-                    <option value="popular" <%= selectedSort === 'popular' ? 'selected' : '' %>>Most Popular</option>
-                    <option value="engagement" <%= selectedSort === 'engagement' ? 'selected' : '' %>>Most Engaging</option>
-                </select>
+                <div class="filter-group">
+                    <label class="filter-label">Sort By</label>
+                    <select class="filter-select" id="sortFilter">
+                        <option value="relevance" <%= selectedSort === 'relevance' ? 'selected' : '' %>>Most Relevant</option>
+                        <option value="latest" <%= selectedSort === 'latest' ? 'selected' : '' %>>Latest</option>
+                        <option value="popular" <%= selectedSort === 'popular' ? 'selected' : '' %>>Most Popular</option>
+                        <option value="engagement" <%= selectedSort === 'engagement' ? 'selected' : '' %>>Most Engaging</option>
+                    </select>
+                </div>
+                
+                <button type="button" class="clear-btn" id="clearFilters">
+                    <i class="fas fa-filter"></i> Clear Filters
+                </button>
             </div>
         </div>
 
         <div class="search-results">
-            <div class="results-header" id="resultsHeader" style="display: none;">
+            <div class="search-stats" id="searchStats" style="display: none;">
                 <div class="results-count" id="resultsCount"></div>
-            </div>
-
-            <div id="loadingState" class="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>Searching videos...</p>
+                <div class="search-time" id="searchTime"></div>
+                <button type="button" class="clear-btn" id="clearSearch">
+                    <i class="fas fa-times"></i> Clear Search
+                </button>
             </div>
 
             <div class="results-grid" id="resultsGrid">
                 <% if (typeof videos !== 'undefined' && videos && videos.length > 0) { %>
                     <% videos.forEach(video => { %>
-                        <div class="video-card" data-video-id="<%= video.id %>" onclick="openVideo('<%= video.slug %>')">
+                        <div class="video-card" data-video-id="<%= video.id %>" data-video-slug="<%= video.slug || video.id %>">
                             <div class="video-thumbnail">
                                 <% if (video.thumbnail) { %>
-                                    <img src="<%= video.thumbnail %>" alt="<%= video.title %>">
+                                    <img src="<%= video.thumbnail %>" alt="<%= video.title %>" loading="lazy">
                                 <% } else { %>
-                                    <video src="<%= video.video_url %>" muted></video>
+                                    <video src="<%= video.video_url %>" muted preload="metadata"></video>
                                 <% } %>
                                 <div class="play-overlay">
                                     <i class="fas fa-play"></i>
@@ -340,14 +667,17 @@
                             <div class="video-info">
                                 <div class="video-title"><%= video.title %></div>
                                 <div class="video-meta">
-                                    <span><i class="fas fa-eye"></i> <%= video.views_count || 0 %></span>
-                                    <span><i class="fas fa-heart"></i> <%= video.likes_count || 0 %></span>
+                                    <span><i class="fas fa-eye"></i> <%= formatNumber(video.views_count || 0) %></span>
+                                    <span><i class="fas fa-heart"></i> <%= formatNumber(video.likes_count || 0) %></span>
                                     <% if (video.username) { %>
-                                        <span>@<%= video.username %></span>
+                                        <span><i class="fas fa-user"></i> @<%= video.username %></span>
                                     <% } %>
                                 </div>
                                 <% if (video.description) { %>
                                     <div class="video-description"><%= video.description %></div>
+                                <% } %>
+                                <% if (video.category_name) { %>
+                                    <span class="video-category"><%= video.category_name %></span>
                                 <% } %>
                             </div>
                         </div>
@@ -355,8 +685,26 @@
                 <% } else if (typeof searchQuery !== 'undefined' && searchQuery) { %>
                     <div class="no-results">
                         <i class="fas fa-search"></i>
-                        <h3>No results found for "<%= searchQuery %>"</h3>
-                        <p>Try different keywords or check your spelling</p>
+                        <h3>No results found</h3>
+                        <p>No videos found for "<%= searchQuery %>". Try different keywords or check your spelling.</p>
+                        <button class="clear-btn" id="tryAgainBtn">
+                            <i class="fas fa-redo"></i> Try Different Keywords
+                        </button>
+                    </div>
+                <% } else { %>
+                    <div class="no-results">
+                        <i class="fas fa-search"></i>
+                        <h3>Search Videos</h3>
+                        <p>Enter keywords above to find amazing videos</p>
+                        <div style="margin-top: 20px;">
+                            <p style="font-size: 14px; margin-bottom: 10px;">Popular searches:</p>
+                            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                                <button class="clear-btn popular-search" data-query="music">Music</button>
+                                <button class="clear-btn popular-search" data-query="cooking">Cooking</button>
+                                <button class="clear-btn popular-search" data-query="travel">Travel</button>
+                                <button class="clear-btn popular-search" data-query="technology">Technology</button>
+                            </div>
+                        </div>
                     </div>
                 <% } %>
             </div>
@@ -366,47 +714,211 @@
     <script>
         let currentQuery = '<%= searchQuery || "" %>';
         let isSearching = false;
+        let searchStartTime = 0;
+        let searchTimeout = null;
+        let suggestionsTimeout = null;
+
+        // Popular search suggestions
+        const popularSearches = [
+            'music videos', 'cooking tutorials', 'travel vlogs', 'technology reviews',
+            'fitness workouts', 'gaming highlights', 'educational content', 'comedy skits',
+            'art tutorials', 'nature documentaries', 'fashion hauls', 'movie reviews'
+        ];
 
         document.addEventListener('DOMContentLoaded', function() {
+            initializeSearch();
+        });
+
+        function initializeSearch() {
             setupEventListeners();
+            updateClearButton();
             
             // Update results count if we have initial results
             const initialVideos = document.querySelectorAll('.video-card');
             if (initialVideos.length > 0) {
-                updateResultsHeader(initialVideos.length);
+                updateSearchStats(initialVideos.length, currentQuery);
+                addVideoClickListeners();
             }
-        });
+            
+            // Focus on search input if no query
+            if (!currentQuery) {
+                document.getElementById('searchInput').focus();
+            }
+        }
 
         function setupEventListeners() {
+            // Back button
+            document.getElementById('backBtn').addEventListener('click', function() {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = '/';
+                }
+            });
+
+            // Search form
+            const searchForm = document.getElementById('searchForm');
             const searchInput = document.getElementById('searchInput');
-            const searchBtn = document.getElementById('searchBtn');
+            const searchClear = document.getElementById('searchClear');
             const categoryFilter = document.getElementById('categoryFilter');
             const sortFilter = document.getElementById('sortFilter');
+            const clearFilters = document.getElementById('clearFilters');
+            const clearSearch = document.getElementById('clearSearch');
 
-            // Search button click
-            searchBtn.addEventListener('click', performSearch);
+            // Form submission
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                hideSuggestions();
+                performSearch();
+            });
 
-            // Enter key in search input
-            searchInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    performSearch();
+            // Search input events
+            searchInput.addEventListener('input', function(e) {
+                updateClearButton();
+                
+                clearTimeout(searchTimeout);
+                clearTimeout(suggestionsTimeout);
+                
+                const value = e.target.value.trim();
+                
+                if (value.length > 0) {
+                    // Show suggestions after short delay
+                    suggestionsTimeout = setTimeout(() => {
+                        showSuggestions(value);
+                    }, 300);
+                    
+                    // Auto-search after longer delay
+                    searchTimeout = setTimeout(() => {
+                        if (value !== currentQuery && value.length >= 2) {
+                            performSearch();
+                        }
+                    }, 1000);
+                } else {
+                    hideSuggestions();
                 }
+            });
+
+            searchInput.addEventListener('focus', function() {
+                const value = this.value.trim();
+                if (value.length > 0) {
+                    showSuggestions(value);
+                }
+            });
+
+            searchInput.addEventListener('blur', function() {
+                // Delay hiding to allow clicking on suggestions
+                setTimeout(() => {
+                    hideSuggestions();
+                }, 200);
+            });
+
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideSuggestions();
+                    this.blur();
+                }
+            });
+
+            // Clear button
+            searchClear.addEventListener('click', function() {
+                searchInput.value = '';
+                searchInput.focus();
+                updateClearButton();
+                hideSuggestions();
             });
 
             // Filter changes
             categoryFilter.addEventListener('change', performSearch);
             sortFilter.addEventListener('change', performSearch);
 
-            // Auto-search after typing (debounced)
-            let searchTimeout;
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    if (searchInput.value.trim() !== currentQuery) {
-                        performSearch();
-                    }
-                }, 500);
+            // Clear filters
+            clearFilters.addEventListener('click', function() {
+                categoryFilter.value = '';
+                sortFilter.value = 'relevance';
+                performSearch();
             });
+
+            // Clear search
+            if (clearSearch) {
+                clearSearch.addEventListener('click', clearSearchResults);
+            }
+
+            // Popular searches
+            document.querySelectorAll('.popular-search').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const query = this.dataset.query;
+                    searchInput.value = query;
+                    updateClearButton();
+                    performSearch();
+                });
+            });
+
+            // Try again button
+            const tryAgainBtn = document.getElementById('tryAgainBtn');
+            if (tryAgainBtn) {
+                tryAgainBtn.addEventListener('click', function() {
+                    searchInput.focus();
+                    searchInput.select();
+                });
+            }
+
+            // Click outside to hide suggestions
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-input-container')) {
+                    hideSuggestions();
+                }
+            });
+        }
+
+        function updateClearButton() {
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+            
+            if (searchInput.value.trim().length > 0) {
+                searchClear.classList.add('show');
+            } else {
+                searchClear.classList.remove('show');
+            }
+        }
+
+        function showSuggestions(query) {
+            const suggestionsDiv = document.getElementById('searchSuggestions');
+            
+            // Filter suggestions based on query
+            const filteredSuggestions = popularSearches.filter(suggestion => 
+                suggestion.toLowerCase().includes(query.toLowerCase()) && 
+                suggestion.toLowerCase() !== query.toLowerCase()
+            ).slice(0, 5);
+
+            if (filteredSuggestions.length === 0) {
+                hideSuggestions();
+                return;
+            }
+
+            suggestionsDiv.innerHTML = filteredSuggestions.map(suggestion => `
+                <div class="suggestion-item" data-suggestion="${suggestion}">
+                    <i class="fas fa-search suggestion-icon"></i>
+                    <span>${suggestion}</span>
+                </div>
+            `).join('');
+
+            // Add click listeners
+            suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const suggestion = this.dataset.suggestion;
+                    document.getElementById('searchInput').value = suggestion;
+                    updateClearButton();
+                    hideSuggestions();
+                    performSearch();
+                });
+            });
+
+            suggestionsDiv.style.display = 'block';
+        }
+
+        function hideSuggestions() {
+            document.getElementById('searchSuggestions').style.display = 'none';
         }
 
         async function performSearch() {
@@ -416,25 +928,38 @@
             const category = document.getElementById('categoryFilter').value;
             const sort = document.getElementById('sortFilter').value;
 
-            if (!query) {
-                showToast('Please enter a search term', 'warning');
+            // Allow empty searches with category filter
+            if (!query && !category) {
+                showToast('Please enter a search term or select a category', 'warning');
                 return;
             }
 
             isSearching = true;
             currentQuery = query;
+            searchStartTime = Date.now();
+
+            // Update search button state
+            const searchBtn = document.getElementById('searchBtn');
+            const originalContent = searchBtn.innerHTML;
+            searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Searching...</span>';
+            searchBtn.disabled = true;
 
             // Show loading state
-            document.getElementById('loadingState').style.display = 'block';
-            document.getElementById('resultsGrid').innerHTML = '';
-            document.getElementById('resultsHeader').style.display = 'none';
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Searching videos...</p>
+                </div>
+            `;
 
             try {
-                const params = new URLSearchParams({
-                    q: query,
-                    ...(category && { category }),
-                    ...(sort && { sort })
-                });
+                const params = new URLSearchParams();
+                if (query) params.append('q', query);
+                if (category) params.append('category', category);
+                if (sort) params.append('sort', sort);
+
+                console.log('Searching with params:', params.toString());
 
                 const response = await fetch(`/api/videos/search?${params}`);
                 
@@ -443,14 +968,18 @@
                 }
 
                 const data = await response.json();
+                console.log('Search response:', data);
 
                 if (data.success) {
+                    const searchTime = Date.now() - searchStartTime;
                     displayResults(data.data || []);
-                    updateResultsHeader(data.data?.length || 0);
+                    updateSearchStats(data.data?.length || 0, query, searchTime);
                     
                     // Update URL without page reload
-                    const newUrl = `/search?${params}`;
-                    window.history.pushState({ query, category, sort }, '', newUrl);
+                    if (query || category || sort) {
+                        const newUrl = `/search?${params}`;
+                        window.history.replaceState({ query, category, sort }, '', newUrl);
+                    }
                 } else {
                     throw new Error(data.message || 'Search failed');
                 }
@@ -459,7 +988,10 @@
                 showError('Search failed. Please try again.');
             } finally {
                 isSearching = false;
-                document.getElementById('loadingState').style.display = 'none';
+                
+                // Restore search button
+                searchBtn.innerHTML = originalContent;
+                searchBtn.disabled = false;
             }
         }
 
@@ -470,53 +1002,82 @@
                 resultsGrid.innerHTML = `
                     <div class="no-results">
                         <i class="fas fa-search"></i>
-                        <h3>No results found for "${currentQuery}"</h3>
-                        <p>Try different keywords or check your spelling</p>
+                        <h3>No results found</h3>
+                        <p>No videos found${currentQuery ? ` for "${currentQuery}"` : ''}. Try different keywords or check your spelling.</p>
+                        <div style="margin-top: 20px;">
+                            <button class="clear-btn" onclick="clearSearchResults()">
+                                <i class="fas fa-times"></i> Clear Search
+                            </button>
+                            <button class="clear-btn" onclick="document.getElementById('searchInput').focus()" style="margin-left: 10px;">
+                                <i class="fas fa-edit"></i> Try Different Keywords
+                            </button>
+                        </div>
                     </div>
                 `;
                 return;
             }
 
             resultsGrid.innerHTML = videos.map(video => `
-                <div class="video-card" data-video-id="${video.id}" onclick="openVideo('${video.slug}')">
+                <div class="video-card" data-video-id="${video.id}" data-video-slug="${video.slug || video.id}">
                     <div class="video-thumbnail">
                         ${video.thumbnail ? 
-                            `<img src="${video.thumbnail}" alt="${video.title}">` :
-                            `<video src="${video.video_url}" muted></video>`
+                            `<img src="${video.thumbnail}" alt="${video.title}" loading="lazy">` :
+                            `<video src="${video.video_url}" muted preload="metadata"></video>`
                         }
                         <div class="play-overlay">
                             <i class="fas fa-play"></i>
                         </div>
                         ${video.duration ? 
-                            `<div class="video-duration">${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}</div>` :
+                            `<div class="video-duration">${formatDuration(video.duration)}</div>` :
                             ''
                         }
                     </div>
                     <div class="video-info">
                         <div class="video-title">${video.title}</div>
                         <div class="video-meta">
-                            <span><i class="fas fa-eye"></i> ${video.views_count || 0}</span>
-                            <span><i class="fas fa-heart"></i> ${video.likes_count || 0}</span>
-                            ${video.username ? `<span>@${video.username}</span>` : ''}
+                            <span><i class="fas fa-eye"></i> ${formatNumber(video.views_count || 0)}</span>
+                            <span><i class="fas fa-heart"></i> ${formatNumber(video.likes_count || 0)}</span>
+                            ${video.username ? `<span><i class="fas fa-user"></i> @${video.username}</span>` : ''}
                         </div>
                         ${video.description ? `<div class="video-description">${video.description}</div>` : ''}
+                        ${video.category_name ? `<span class="video-category">${video.category_name}</span>` : ''}
                     </div>
                 </div>
             `).join('');
 
-            // Add hover effects for video previews
+            // Add click listeners and hover effects
+            addVideoClickListeners();
             addVideoPreviewEffects();
+        }
+
+        function addVideoClickListeners() {
+            document.querySelectorAll('.video-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const videoSlug = this.dataset.videoSlug;
+                    if (videoSlug) {
+                        window.location.href = `/video/${videoSlug}`;
+                    }
+                });
+            });
         }
 
         function addVideoPreviewEffects() {
             document.querySelectorAll('.video-card').forEach(card => {
                 const video = card.querySelector('video');
                 if (video) {
+                    let hoverTimeout;
+                    
                     card.addEventListener('mouseenter', () => {
-                        video.play().catch(() => {});
+                        // Delay video play to avoid accidental triggers
+                        hoverTimeout = setTimeout(() => {
+                            video.play().catch(() => {
+                                console.log('Video preview play failed');
+                            });
+                        }, 500);
                     });
                     
                     card.addEventListener('mouseleave', () => {
+                        clearTimeout(hoverTimeout);
                         video.pause();
                         video.currentTime = 0;
                     });
@@ -524,20 +1085,65 @@
             });
         }
 
-        function updateResultsHeader(count) {
-            const resultsHeader = document.getElementById('resultsHeader');
+        function updateSearchStats(count, query = currentQuery, searchTime = 0) {
+            const searchStats = document.getElementById('searchStats');
             const resultsCount = document.getElementById('resultsCount');
+            const searchTimeEl = document.getElementById('searchTime');
             
-            if (count > 0) {
-                resultsCount.textContent = `Found ${count} video${count !== 1 ? 's' : ''} for "${currentQuery}"`;
-                resultsHeader.style.display = 'flex';
+            if (count > 0 || query) {
+                resultsCount.innerHTML = `
+                    <i class="fas fa-video"></i>
+                    <span>Found ${count} video${count !== 1 ? 's' : ''}${query ? ` for "${query}"` : ''}</span>
+                `;
+                
+                if (searchTime > 0) {
+                    searchTimeEl.textContent = `Search completed in ${(searchTime / 1000).toFixed(2)} seconds`;
+                }
+                
+                searchStats.style.display = 'flex';
             } else {
-                resultsHeader.style.display = 'none';
+                searchStats.style.display = 'none';
             }
         }
 
-        function openVideo(slug) {
-            window.location.href = `/video/${slug}`;
+        function clearSearchResults() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('sortFilter').value = 'relevance';
+            
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = `
+                <div class="no-results">
+                    <i class="fas fa-search"></i>
+                    <h3>Search Videos</h3>
+                    <p>Enter keywords above to find amazing videos</p>
+                    <div style="margin-top: 20px;">
+                        <p style="font-size: 14px; margin-bottom: 10px;">Popular searches:</p>
+                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                            <button class="clear-btn popular-search" data-query="music">Music</button>
+                            <button class="clear-btn popular-search" data-query="cooking">Cooking</button>
+                            <button class="clear-btn popular-search" data-query="travel">Travel</button>
+                            <button class="clear-btn popular-search" data-query="technology">Technology</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Re-add popular search listeners
+            document.querySelectorAll('.popular-search').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const query = this.dataset.query;
+                    document.getElementById('searchInput').value = query;
+                    updateClearButton();
+                    performSearch();
+                });
+            });
+            
+            document.getElementById('searchStats').style.display = 'none';
+            window.history.replaceState({}, '', '/search');
+            currentQuery = '';
+            updateClearButton();
+            hideSuggestions();
         }
 
         function showError(message) {
@@ -547,35 +1153,90 @@
                     <i class="fas fa-exclamation-triangle"></i>
                     <h3>Search Error</h3>
                     <p>${message}</p>
-                    <button onclick="performSearch()" style="margin-top: 15px; padding: 10px 20px; background: #fe2c55; color: white; border: none; border-radius: 20px; cursor: pointer;">
-                        Try Again
-                    </button>
+                    <div style="margin-top: 20px;">
+                        <button class="clear-btn" onclick="performSearch()">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <button class="clear-btn" onclick="clearSearchResults()" style="margin-left: 10px;">
+                            <i class="fas fa-times"></i> Clear Search
+                        </button>
+                    </div>
                 </div>
             `;
         }
 
-        function showToast(message, type = 'info') {
+        function showToast(message, type = 'info', duration = 3000) {
+            // Remove existing toasts
+            document.querySelectorAll('.toast').forEach(toast => toast.remove());
+            
             const toast = document.createElement('div');
+            toast.className = 'toast';
+            
+            const colors = {
+                success: '#27ae60',
+                error: '#e74c3c',
+                warning: '#f39c12',
+                info: '#3498db'
+            };
+            
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
             toast.style.cssText = `
                 position: fixed;
                 bottom: 30px;
                 left: 50%;
                 transform: translateX(-50%);
-                background: ${type === 'warning' ? '#ffa502' : '#2ed573'};
+                background: ${colors[type] || colors.info};
                 color: white;
-                padding: 12px 20px;
+                padding: 15px 20px;
                 border-radius: 25px;
                 z-index: 1000;
                 font-size: 14px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                max-width: 400px;
+                backdrop-filter: blur(10px);
+                animation: toastSlideUp 0.3s ease;
             `;
-            toast.textContent = message;
+            
+            toast.innerHTML = `
+                <i class="${icons[type] || icons.info}"></i>
+                <span>${message}</span>
+            `;
+            
             document.body.appendChild(toast);
             
             setTimeout(() => {
-                toast.remove();
-            }, 3000);
+                toast.style.animation = 'toastSlideDown 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
         }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Global function for onclick handlers
+        window.clearSearchResults = clearSearchResults;
+        window.performSearch = performSearch;
 
         // Handle browser back/forward
         window.addEventListener('popstate', function(e) {
@@ -583,9 +1244,49 @@
                 document.getElementById('searchInput').value = e.state.query || '';
                 document.getElementById('categoryFilter').value = e.state.category || '';
                 document.getElementById('sortFilter').value = e.state.sort || '';
+                updateClearButton();
                 performSearch();
             }
         });
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes toastSlideUp {
+                from {
+                    opacity: 0;
+                    transform: translate(-50%, 20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                }
+            }
+            
+            @keyframes toastSlideDown {
+                from {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translate(-50%, 20px);
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
+
+    <!-- Helper function for server-side number formatting -->
+    <% 
+    function formatNumber(num) {
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        } else if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'K';
+        }
+        return num.toString();
+    }
+    %>
 </body>
 </html>
