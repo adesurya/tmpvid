@@ -1,0 +1,1033 @@
+<!-- views/admin/ads-create.ejs -->
+<div class="admin-header">
+    <div class="header-left">
+        <h1><i class="fas fa-plus"></i> Create New Advertisement</h1>
+        <p>Create a new advertisement for video feed integration</p>
+    </div>
+    <div class="header-actions">
+        <a href="/admin/ads" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Back to Ads
+        </a>
+    </div>
+</div>
+
+<div class="form-container">
+    <form id="createAdForm" enctype="multipart/form-data" method="POST" action="/admin/ads">
+        <div class="form-sections">
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h3><i class="fas fa-info-circle"></i> Basic Information</h3>
+                
+                <div class="form-group">
+                    <label for="title">Advertisement Title *</label>
+                    <input type="text" id="title" name="title" required 
+                           placeholder="Enter a descriptive title for your ad">
+                    <small class="form-help">This title is for internal reference only</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="3" 
+                              placeholder="Optional description of the advertisement"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="type">Advertisement Type *</label>
+                        <select id="type" name="type" required onchange="handleTypeChange()">
+                            <option value="">Select Type</option>
+                            <option value="image">Image Advertisement</option>
+                            <option value="video">Video Advertisement</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="slot_position">Slot Position *</label>
+                        <select id="slot_position" name="slot_position" required>
+                            <option value="">Select Slot</option>
+                            <option value="1">Slot 1 (After 2nd video)</option>
+                            <option value="2">Slot 2 (After 5th video)</option>
+                            <option value="3">Slot 3 (After 8th video)</option>
+                            <option value="4">Slot 4 (After 11th video)</option>
+                            <option value="5">Slot 5 (After 14th video)</option>
+                        </select>
+                        <small class="form-help">Ads cycle through slots 1-5 repeatedly</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Media Upload -->
+            <div class="form-section">
+                <h3><i class="fas fa-upload"></i> Media Upload</h3>
+                
+                <div class="form-group">
+                    <label for="media_file">Advertisement Media *</label>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <input type="file" id="media_file" name="media_file" required 
+                               accept="image/*,video/*" onchange="handleFileSelect(event)">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to upload or drag and drop</p>
+                            <small>Supported: JPG, PNG, GIF, MP4, AVI, MOV, WEBM (Max: 50MB)</small>
+                        </div>
+                    </div>
+                    <div id="filePreview" class="file-preview" style="display: none;"></div>
+                </div>
+                
+                <div class="form-group" id="durationGroup" style="display: none;">
+                    <label for="duration">Video Duration (seconds)</label>
+                    <input type="number" id="duration" name="duration" min="1" max="60" 
+                           placeholder="Auto-detected or enter manually">
+                    <small class="form-help">Maximum 60 seconds for video ads</small>
+                </div>
+            </div>
+            
+            <!-- Click Action -->
+            <div class="form-section">
+                <h3><i class="fas fa-mouse-pointer"></i> Click Action</h3>
+                
+                <div class="form-group">
+                    <label for="click_url">Click Destination URL</label>
+                    <input type="url" id="click_url" name="click_url" 
+                           placeholder="https://example.com/landing-page">
+                    <small class="form-help">Where users will be redirected when they click the ad</small>
+                </div>
+            </div>
+            
+            <!-- Scheduling -->
+            <div class="form-section">
+                <h3><i class="fas fa-calendar-alt"></i> Scheduling</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="start_date">Start Date</label>
+                        <input type="datetime-local" id="start_date" name="start_date">
+                        <small class="form-help">Leave empty to start immediately</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="end_date">End Date</label>
+                        <input type="datetime-local" id="end_date" name="end_date">
+                        <small class="form-help">Leave empty for no end date</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="is_active" name="is_active" checked>
+                        <span class="checkmark"></span>
+                        Activate advertisement immediately
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button type="button" onclick="previewAd()" class="btn btn-info" id="previewBtn" disabled>
+                <i class="fas fa-eye"></i>
+                Preview
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                Create Advertisement
+            </button>
+            <a href="/admin/ads" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal" id="previewModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-eye"></i> Advertisement Preview</h3>
+            <button class="modal-close" onclick="closeModal('previewModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="preview-container">
+                <div class="mobile-frame">
+                    <div class="mobile-header">
+                        <div class="mobile-nav">
+                            <span class="logo">VideoApp</span>
+                            <div class="nav-icons">
+                                <i class="fas fa-search"></i>
+                                <i class="fas fa-bars"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="video-feed">
+                        <!-- Mock video -->
+                        <div class="mock-video">
+                            <div class="video-placeholder">
+                                <i class="fas fa-play"></i>
+                                <span>Regular Video</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Ad preview -->
+                        <div class="ad-preview-item">
+                            <div id="adPreviewContent" class="ad-content">
+                                <!-- Ad content will be inserted here -->
+                            </div>
+                            <div class="ad-label">
+                                <span>Advertisement</span>
+                            </div>
+                            <div class="ad-skip">
+                                <button>Skip Ad</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Mock video -->
+                        <div class="mock-video">
+                            <div class="video-placeholder">
+                                <i class="fas fa-play"></i>
+                                <span>Next Video</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="preview-info">
+                <h4>Preview Information</h4>
+                <div id="previewDetails"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #eee;
+    }
+
+    .header-left h1 {
+        margin: 0 0 5px 0;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .header-left p {
+        margin: 0;
+        color: #7f8c8d;
+    }
+
+    .form-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .form-sections {
+        padding: 30px;
+    }
+
+    .form-section {
+        margin-bottom: 40px;
+        padding-bottom: 30px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .form-section:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .form-section h3 {
+        margin: 0 0 20px 0;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e0e6ed;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-help {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+        color: #7f8c8d;
+    }
+
+    .file-upload-area {
+        position: relative;
+        border: 2px dashed #bdc3c7;
+        border-radius: 8px;
+        padding: 40px 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .file-upload-area:hover {
+        border-color: #3498db;
+        background: rgba(52, 152, 219, 0.02);
+    }
+
+    .file-upload-area.dragover {
+        border-color: #27ae60;
+        background: rgba(39, 174, 96, 0.05);
+    }
+
+    .file-upload-area input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .upload-content {
+        pointer-events: none;
+    }
+
+    .upload-content i {
+        font-size: 48px;
+        color: #bdc3c7;
+        margin-bottom: 15px;
+    }
+
+    .upload-content p {
+        margin: 0 0 5px 0;
+        font-size: 16px;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .upload-content small {
+        color: #7f8c8d;
+    }
+
+    .file-preview {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+
+    .file-preview img,
+    .file-preview video {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+    .file-info {
+        font-size: 14px;
+        color: #6c757d;
+    }
+
+    .file-info strong {
+        color: #495057;
+    }
+
+    .checkbox-label {
+        display: flex !important;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        display: none;
+    }
+
+    .checkmark {
+        width: 20px;
+        height: 20px;
+        background: #fff;
+        border: 2px solid #e0e6ed;
+        border-radius: 4px;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .checkbox-label input[type="checkbox"]:checked + .checkmark {
+        background: #3498db;
+        border-color: #3498db;
+    }
+
+    .checkbox-label input[type="checkbox"]:checked + .checkmark:after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 6px;
+        width: 5px;
+        height: 10px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .form-actions {
+        padding: 25px 30px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        min-width: 120px;
+        justify-content: center;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #2980b9;
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+        background: #95a5a6;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #7f8c8d;
+    }
+
+    .btn-info {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .btn-info:hover:not(:disabled) {
+        background: #138496;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 2% auto;
+        padding: 0;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        padding: 20px 25px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #7f8c8d;
+        padding: 5px;
+    }
+
+    .modal-body {
+        padding: 25px;
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+
+    .preview-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .mobile-frame {
+        background: #000;
+        border-radius: 25px;
+        padding: 15px;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+
+    .mobile-header {
+        background: #fff;
+        border-radius: 15px 15px 0 0;
+        padding: 10px 15px;
+    }
+
+    .mobile-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .logo {
+        font-weight: bold;
+        color: #fe2c55;
+    }
+
+    .nav-icons {
+        display: flex;
+        gap: 15px;
+        color: #333;
+    }
+
+    .video-feed {
+        background: #000;
+        height: 400px;
+        overflow: hidden;
+        border-radius: 0 0 15px 15px;
+        position: relative;
+    }
+
+    .mock-video, .ad-preview-item {
+        width: 100%;
+        height: 130px;
+        position: relative;
+        border-bottom: 1px solid #333;
+    }
+
+    .video-placeholder {
+        width: 100%;
+        height: 100%;
+        background: #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 14px;
+    }
+
+    .video-placeholder i {
+        font-size: 24px;
+        margin-bottom: 5px;
+    }
+
+    .ad-content {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ad-content img,
+    .ad-content video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .ad-label {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .ad-skip {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .ad-skip button {
+        background: rgba(255,255,255,0.9);
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+
+    .preview-info {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .preview-info h4 {
+        margin: 0 0 15px 0;
+        color: #2c3e50;
+    }
+
+    .preview-details {
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .preview-details strong {
+        color: #2c3e50;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .preview-container {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+    let selectedFile = null;
+    let fileType = null;
+
+    // Handle file selection
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        selectedFile = file;
+        fileType = file.type.startsWith('image/') ? 'image' : 'video';
+
+        // Auto-select type based on file
+        const typeSelect = document.getElementById('type');
+        typeSelect.value = fileType;
+        handleTypeChange();
+
+        // Show preview
+        showFilePreview(file);
+
+        // Enable preview button
+        document.getElementById('previewBtn').disabled = false;
+
+        // Auto-detect video duration
+        if (fileType === 'video') {
+            detectVideoDuration(file);
+        }
+    }
+
+    // Show file preview
+    function showFilePreview(file) {
+        const preview = document.getElementById('filePreview');
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            let content = '';
+
+            if (file.type.startsWith('image/')) {
+                content = `
+                    <img src="${e.target.result}" alt="Preview">
+                    <div class="file-info">
+                        <strong>File:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${fileSize} MB<br>
+                        <strong>Type:</strong> ${file.type}
+                    </div>
+                `;
+            } else if (file.type.startsWith('video/')) {
+                content = `
+                    <video controls muted>
+                        <source src="${e.target.result}" type="${file.type}">
+                    </video>
+                    <div class="file-info">
+                        <strong>File:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${fileSize} MB<br>
+                        <strong>Type:</strong> ${file.type}
+                    </div>
+                `;
+            }
+
+            preview.innerHTML = content;
+            preview.style.display = 'block';
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    // Handle type change
+    function handleTypeChange() {
+        const type = document.getElementById('type').value;
+        const durationGroup = document.getElementById('durationGroup');
+
+        if (type === 'video') {
+            durationGroup.style.display = 'block';
+        } else {
+            durationGroup.style.display = 'none';
+        }
+    }
+
+    // Detect video duration
+    function detectVideoDuration(file) {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+
+        video.onloadedmetadata = function() {
+            const duration = Math.round(video.duration);
+            document.getElementById('duration').value = duration;
+            URL.revokeObjectURL(video.src);
+        };
+
+        video.src = URL.createObjectURL(file);
+    }
+
+    // Preview ad
+    function previewAd() {
+        if (!selectedFile) {
+            alert('Please select a media file first');
+            return;
+        }
+
+        const formData = new FormData(document.getElementById('createAdForm'));
+        const title = formData.get('title') || 'Untitled Ad';
+        const slot = formData.get('slot_position');
+        const clickUrl = formData.get('click_url');
+        const duration = formData.get('duration');
+
+        // Show modal
+        document.getElementById('previewModal').style.display = 'block';
+
+        // Create preview content
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const adContent = document.getElementById('adPreviewContent');
+            
+            if (fileType === 'image') {
+                adContent.innerHTML = `<img src="${e.target.result}" alt="${title}">`;
+            } else {
+                adContent.innerHTML = `
+                    <video autoplay muted loop>
+                        <source src="${e.target.result}" type="${selectedFile.type}">
+                    </video>
+                `;
+            }
+
+            // Update preview details
+            const details = document.getElementById('previewDetails');
+            details.innerHTML = `
+                <div class="preview-details">
+                    <p><strong>Title:</strong> ${title}</p>
+                    <p><strong>Type:</strong> ${fileType.charAt(0).toUpperCase() + fileType.slice(1)} Advertisement</p>
+                    <p><strong>Slot Position:</strong> ${slot ? `Slot ${slot}` : 'Not selected'}</p>
+                    <p><strong>File Size:</strong> ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    ${duration ? `<p><strong>Duration:</strong> ${duration} seconds</p>` : ''}
+                    ${clickUrl ? `<p><strong>Click URL:</strong> <a href="${clickUrl}" target="_blank">${clickUrl}</a></p>` : '<p><strong>Click URL:</strong> Not set</p>'}
+                    <p><strong>Display Pattern:</strong> Shows after every 2 videos, cycling through 5 ad slots</p>
+                </div>
+            `;
+        };
+
+        reader.readAsDataURL(selectedFile);
+    }
+
+    // Close modal
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    // Form submission
+    document.getElementById('createAdForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+        try {
+            const formData = new FormData(this);
+            
+            const response = await fetch('/admin/ads', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Advertisement created successfully!', 'success');
+                
+                // Redirect after short delay
+                setTimeout(() => {
+                    window.location.href = '/admin/ads';
+                }, 1500);
+            } else {
+                showNotification(data.message || 'Failed to create advertisement', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        } catch (error) {
+            console.error('Submit error:', error);
+            showNotification('Failed to create advertisement', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        document.querySelectorAll('.notification').forEach(n => n.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    // Drag and drop functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadArea = document.getElementById('fileUploadArea');
+        const fileInput = document.getElementById('media_file');
+
+        // Set default slot if URL parameter exists
+        const urlParams = new URLSearchParams(window.location.search);
+        const slot = urlParams.get('slot');
+        if (slot) {
+            document.getElementById('slot_position').value = slot;
+        }
+
+        // Drag and drop events
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+
+        // Click to upload
+        uploadArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Form validation
+        const form = document.getElementById('createAdForm');
+        const inputs = form.querySelectorAll('input[required], select[required]');
+        
+        inputs.forEach(input => {
+            input.addEventListener('blur', validateField);
+            input.addEventListener('input', validateField);
+        });
+
+        function validateField(e) {
+            const field = e.target;
+            const value = field.value.trim();
+            
+            // Remove existing error styling
+            field.classList.remove('error');
+            
+            if (field.hasAttribute('required') && !value) {
+                field.classList.add('error');
+            } else if (field.type === 'url' && value && !isValidUrl(value)) {
+                field.classList.add('error');
+            } else if (field.type === 'number') {
+                const num = parseInt(value);
+                const min = parseInt(field.getAttribute('min'));
+                const max = parseInt(field.getAttribute('max'));
+                
+                if (value && (isNaN(num) || (min && num < min) || (max && num > max))) {
+                    field.classList.add('error');
+                }
+            }
+        }
+
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+    });
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+<style>
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 5px;
+        color: white;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
+    }
+
+    .notification-success {
+        background: #27ae60;
+    }
+
+    .notification-error {
+        background: #e74c3c;
+    }
+
+    .notification-info {
+        background: #3498db;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .form-group input.error,
+    .form-group select.error,
+    .form-group textarea.error {
+        border-color: #e74c3c;
+        background-color: rgba(231, 76, 60, 0.05);
+    }
+
+    .form-group input.error:focus,
+    .form-group select.error:focus,
+    .form-group textarea.error:focus {
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+    }
+</style>

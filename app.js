@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 3000;
 
 // Import routes
 const routes = require('./src/routes');
+const adRoutes = require('./src/routes/adRoutes'); // NEW: Ad Routes
 
 initDatabase().then(() => {
     console.log('✅ Database initialization complete');
@@ -198,6 +199,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/', routes);
+app.use('/', adRoutes);  
 
 // 404 handler
 app.use((req, res) => {
@@ -245,6 +247,7 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📱 Access the app at: http://localhost:${PORT}`);
     console.log(`🔧 Admin dashboard: http://localhost:${PORT}/admin`);
+    console.log(`🎯 Ads management: http://localhost:${PORT}/admin/ads`);
     console.log(`📡 Public API: http://localhost:${PORT}/api/public`);
     console.log(`🔗 RSS Feed: http://localhost:${PORT}/api/public/rss`);
     console.log(`📖 API Docs: http://localhost:${PORT}/api/public/docs`);
