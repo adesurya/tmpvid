@@ -1,4 +1,4 @@
--- MySQL dump 10.13  Distrib 8.0.30, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.19, for Win64 (x86_64)
 --
 -- Host: localhost    Database: video_platform
 -- ------------------------------------------------------
@@ -16,6 +16,178 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `ad_clicks`
+--
+
+DROP TABLE IF EXISTS `ad_clicks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ad_clicks` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `ad_id` int NOT NULL,
+  `user_id` int DEFAULT NULL COMMENT 'ID user yang mengklik ad (jika login)',
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'IP address pengunjung',
+  `user_agent` text COLLATE utf8mb4_unicode_ci COMMENT 'Browser user agent',
+  `referrer` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'URL referrer',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ad_clicks_ad_id` (`ad_id`),
+  KEY `idx_ad_clicks_created_at` (`created_at`),
+  KEY `idx_ad_clicks_user_id` (`user_id`),
+  CONSTRAINT `ad_clicks_ibfk_1` FOREIGN KEY (`ad_id`) REFERENCES `ads` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Track ad clicks for analytics';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ad_clicks`
+--
+
+LOCK TABLES `ad_clicks` WRITE;
+/*!40000 ALTER TABLE `ad_clicks` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ad_clicks` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `ad_impressions`
+--
+
+DROP TABLE IF EXISTS `ad_impressions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ad_impressions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `ad_id` int NOT NULL,
+  `user_id` int DEFAULT NULL COMMENT 'ID user yang melihat ad (jika login)',
+  `video_index` int DEFAULT NULL COMMENT 'Index video dimana ad ditampilkan',
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'IP address pengunjung',
+  `user_agent` text COLLATE utf8mb4_unicode_ci COMMENT 'Browser user agent',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ad_impressions_ad_id` (`ad_id`),
+  KEY `idx_ad_impressions_created_at` (`created_at`),
+  KEY `idx_ad_impressions_video_index` (`video_index`),
+  KEY `idx_ad_impressions_user_id` (`user_id`),
+  CONSTRAINT `ad_impressions_ibfk_1` FOREIGN KEY (`ad_id`) REFERENCES `ads` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Track ad impressions for analytics';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ad_impressions`
+--
+
+LOCK TABLES `ad_impressions` WRITE;
+/*!40000 ALTER TABLE `ad_impressions` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ad_impressions` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `ads`
+--
+
+DROP TABLE IF EXISTS `ads`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ads` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `type` enum('video','image','google_ads') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `media_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Media file URL for image/video ads, null for Google Ads',
+  `click_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Destination URL when ad is clicked, optional for Google Ads',
+  `duration` int DEFAULT '0',
+  `slot_position` int NOT NULL,
+  `impressions_count` int DEFAULT '0',
+  `clicks_count` int DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1',
+  `start_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `end_date` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `open_new_tab` tinyint(1) DEFAULT '1',
+  `google_ads_script` text COLLATE utf8mb4_unicode_ci COMMENT 'Google Ads script content for google_ads type',
+  PRIMARY KEY (`id`),
+  KEY `idx_ads_slot_position` (`slot_position`),
+  KEY `idx_ads_is_active` (`is_active`),
+  KEY `idx_ads_dates` (`start_date`,`end_date`),
+  KEY `idx_ads_type` (`type`),
+  CONSTRAINT `ads_chk_1` CHECK ((`slot_position` between 1 and 5)),
+  CONSTRAINT `ads_chk_counts` CHECK (((`impressions_count` >= 0) and (`clicks_count` >= 0))),
+  CONSTRAINT `ads_chk_duration` CHECK (((`duration` >= 0) and (`duration` <= 3600))),
+  CONSTRAINT `ads_chk_slot_position` CHECK ((`slot_position` between 1 and 5))
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Advertisement management table supporting image, video, and Google Ads';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ads`
+--
+
+LOCK TABLES `ads` WRITE;
+/*!40000 ALTER TABLE `ads` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ads` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Temporary view structure for view `ads_analytics`
+--
+
+DROP TABLE IF EXISTS `ads_analytics`;
+/*!50001 DROP VIEW IF EXISTS `ads_analytics`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `ads_analytics` AS SELECT 
+ 1 AS `id`,
+ 1 AS `title`,
+ 1 AS `type`,
+ 1 AS `slot_position`,
+ 1 AS `is_active`,
+ 1 AS `impressions_count`,
+ 1 AS `clicks_count`,
+ 1 AS `ctr_percentage`,
+ 1 AS `tracked_impressions`,
+ 1 AS `tracked_clicks`,
+ 1 AS `unique_viewers`,
+ 1 AS `unique_clickers`,
+ 1 AS `created_at`,
+ 1 AS `updated_at`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Table structure for table `ads_backup`
+--
+
+DROP TABLE IF EXISTS `ads_backup`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ads_backup` (
+  `id` int NOT NULL DEFAULT '0',
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `type` enum('video','image') NOT NULL,
+  `media_url` varchar(500) NOT NULL,
+  `click_url` varchar(500) NOT NULL,
+  `duration` int DEFAULT '0',
+  `slot_position` int NOT NULL,
+  `impressions_count` int DEFAULT '0',
+  `clicks_count` int DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1',
+  `start_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `end_date` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `open_new_tab` tinyint(1) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ads_backup`
+--
+
+LOCK TABLES `ads_backup` WRITE;
+/*!40000 ALTER TABLE `ads_backup` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ads_backup` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `ads_settings`
 --
 
@@ -24,16 +196,27 @@ DROP TABLE IF EXISTS `ads_settings`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `ads_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` enum('google_adsense','google_ads','custom','analytics') COLLATE utf8mb4_unicode_ci DEFAULT 'google_adsense',
-  `code` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `position` enum('header','footer','before_video','after_video','sidebar') COLLATE utf8mb4_unicode_ci DEFAULT 'header',
-  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('google_adsense','google_ads','custom','analytics') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'google_adsense',
+  `code` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `position` enum('header','footer','before_video','after_video','sidebar') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'header',
+  `status` enum('active','inactive') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `publisher_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ad_slot` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `validation_status` enum('valid','invalid','warning','pending') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `validation_score` decimal(3,1) DEFAULT '0.0',
+  `validation_errors` json DEFAULT NULL,
+  `validation_warnings` json DEFAULT NULL,
+  `validation_data` json DEFAULT NULL,
+  `code_hash` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_validated` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_validation_status` (`validation_status`),
+  KEY `idx_code_hash` (`code_hash`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -216,7 +399,7 @@ CREATE TABLE `video_shares` (
   KEY `idx_video_shares_platform` (`platform`),
   CONSTRAINT `video_shares_ibfk_1` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`) ON DELETE CASCADE,
   CONSTRAINT `video_shares_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -225,6 +408,7 @@ CREATE TABLE `video_shares` (
 
 LOCK TABLES `video_shares` WRITE;
 /*!40000 ALTER TABLE `video_shares` DISABLE KEYS */;
+INSERT INTO `video_shares` VALUES (3,8,NULL,'copy','2025-06-18 11:41:58',NULL,NULL),(4,8,NULL,'whatsapp','2025-06-18 11:42:07',NULL,NULL);
 /*!40000 ALTER TABLE `video_shares` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -278,7 +462,7 @@ CREATE TABLE `video_views` (
   KEY `idx_video_views_ip_address` (`ip_address`),
   CONSTRAINT `video_views_ibfk_1` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`) ON DELETE CASCADE,
   CONSTRAINT `video_views_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -287,7 +471,7 @@ CREATE TABLE `video_views` (
 
 LOCK TABLES `video_views` WRITE;
 /*!40000 ALTER TABLE `video_views` DISABLE KEYS */;
-INSERT INTO `video_views` VALUES (33,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',0,'2025-06-09 09:01:18'),(34,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',10,'2025-06-09 09:01:31'),(35,5,1,'::1','Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',20,'2025-06-09 09:01:41'),(36,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',30,'2025-06-09 09:02:09'),(37,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',32,'2025-06-09 09:02:12'),(38,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',36,'2025-06-09 09:02:33'),(39,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',0,'2025-06-09 09:02:38'),(40,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',2,'2025-06-09 09:02:41'),(41,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',0,'2025-06-09 09:02:44'),(42,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',0,'2025-06-09 09:06:42'),(43,5,1,'::1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',3,'2025-06-09 09:06:46'),(44,5,NULL,'::ffff:127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',0,'2025-06-09 12:04:19'),(45,5,NULL,'::ffff:127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',6,'2025-06-09 12:04:27');
+INSERT INTO `video_views` VALUES (48,8,1,'::1','Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',0,'2025-06-16 08:03:25'),(49,8,1,'::1','Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',5,'2025-06-16 08:03:34'),(50,8,NULL,'::1','Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',0,'2025-06-16 11:13:46'),(51,6,NULL,'::1','Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',0,'2025-06-16 11:13:57'),(52,6,NULL,'::1','Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',4,'2025-06-16 11:14:03');
 /*!40000 ALTER TABLE `video_views` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -332,7 +516,7 @@ CREATE TABLE `videos` (
   CONSTRAINT `videos_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
   CONSTRAINT `videos_ibfk_2` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`) ON DELETE SET NULL,
   CONSTRAINT `videos_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -341,9 +525,31 @@ CREATE TABLE `videos` (
 
 LOCK TABLES `videos` WRITE;
 /*!40000 ALTER TABLE `videos` DISABLE KEYS */;
-INSERT INTO `videos` VALUES (5,'asdsadas','asdasdsa','asdsadas','/uploads/videos/1ed3f114-b6e6-40e7-9aa4-6f479ed4f1dc.mp4',NULL,0,3400050,'720p','local',6,NULL,1,13,0,0,0.00,'published','2025-06-09 08:46:11','2025-06-09 12:04:27');
+INSERT INTO `videos` VALUES (6,'Test','Test Upload 1','test','/uploads/videos/f9b5d996-5028-4104-876b-29809ca64198.mp4',NULL,0,635910,'720p','local',1,NULL,1,2,0,0,0.00,'published','2025-06-16 07:57:20','2025-06-16 11:14:03'),(7,'Test Upload 2','Test Upload 2','test-upload-2','/uploads/videos/4a227ed0-708a-4689-b110-af105b602643.mp4',NULL,0,940444,'720p','local',2,NULL,1,0,0,0,0.00,'published','2025-06-16 07:57:45','2025-06-16 07:57:45'),(8,'Test Upload 3','Test Upload 3','test-upload-3','/uploads/videos/751ba9ba-76b7-4572-a1db-d42d69203610.mp4',NULL,0,1160561,'720p','local',2,NULL,1,3,0,2,0.00,'published','2025-06-16 07:58:27','2025-06-18 11:42:07');
 /*!40000 ALTER TABLE `videos` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Dumping routines for database 'video_platform'
+--
+
+--
+-- Final view structure for view `ads_analytics`
+--
+
+/*!50001 DROP VIEW IF EXISTS `ads_analytics`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `ads_analytics` AS select `a`.`id` AS `id`,`a`.`title` AS `title`,`a`.`type` AS `type`,`a`.`slot_position` AS `slot_position`,`a`.`is_active` AS `is_active`,`a`.`impressions_count` AS `impressions_count`,`a`.`clicks_count` AS `clicks_count`,(case when (`a`.`impressions_count` > 0) then round(((`a`.`clicks_count` / `a`.`impressions_count`) * 100),2) else 0 end) AS `ctr_percentage`,count(distinct `ai`.`id`) AS `tracked_impressions`,count(distinct `ac`.`id`) AS `tracked_clicks`,count(distinct `ai`.`user_id`) AS `unique_viewers`,count(distinct `ac`.`user_id`) AS `unique_clickers`,`a`.`created_at` AS `created_at`,`a`.`updated_at` AS `updated_at` from ((`ads` `a` left join `ad_impressions` `ai` on((`a`.`id` = `ai`.`ad_id`))) left join `ad_clicks` `ac` on((`a`.`id` = `ac`.`ad_id`))) group by `a`.`id`,`a`.`title`,`a`.`type`,`a`.`slot_position`,`a`.`is_active`,`a`.`impressions_count`,`a`.`clicks_count`,`a`.`created_at`,`a`.`updated_at` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -354,4 +560,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-06-09 20:57:11
+-- Dump completed on 2025-06-20 19:38:27

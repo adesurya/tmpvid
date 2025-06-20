@@ -7,16 +7,20 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "seed": "node database/seed.js",
-    "reset-admin": "node database/seed.js"
+    "reset-admin": "node database/seed.js",
+    "test:db": "node -e \"require('./src/database/connection').testConnection().then(r => console.log('DB Test:', r ? 'PASS' : 'FAIL')).catch(console.error)\"",
+    "test:ads": "node -e \"require('./src/models/Ad').initializeTable().then(() => console.log('Ads Test: PASS')).catch(e => console.log('Ads Test: FAIL -', e.message))\"",
+    "init:ads": "node -e \"require('./src/models/Ad').initializeTable().then(() => console.log('✅ Ads system initialized')).catch(console.error)\""
   },
   "dependencies": {
     "aws-sdk": "^2.1479.0",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.0",
     "connect-flash": "^0.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.5.0",
     "ejs": "^3.1.10",
     "ejs-mate": "^4.0.0",
     "express": "^4.21.2",

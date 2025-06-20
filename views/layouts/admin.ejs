@@ -319,6 +319,8 @@
             }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <script src="/js/client-utils.js"></script>
 </head>
 <body>
     <!-- Sidebar -->
@@ -375,10 +377,10 @@
             <!-- Monetization (NEW) -->
             <div class="menu-section">
                 <div class="menu-section-title">Monetization</div>
-                <a href="/admin/ads" class="menu-item new <%= title === 'Google Ads Management' ? 'active' : '' %>">
-                    <i class="fab fa-google"></i>
-                    Google Ads
-                    <span class="badge">NEW</span>
+                <a href="/admin/ads" class="menu-item <%= title === 'Manage Advertisements' ? 'active' : '' %>">
+                    <i class="fas fa-bullhorn"></i>
+                    Advertisements
+                    <span class="badge new">NEW</span>
                 </a>
             </div>
 

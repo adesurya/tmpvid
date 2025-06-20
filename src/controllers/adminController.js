@@ -1434,22 +1434,67 @@ static async updateSettings(req, res) {
     }
 
     // Login handler
-static async login(req, res) {
+    static async login(req, res) {
         try {
-            const { username, password } = req.body;
+            console.log('AdminController.login called with body:', req.body);
+            
+            // FIXED: Check if req.body exists and destructure safely
+            const { username, password } = req.body || {};
 
             if (!username || !password) {
-                req.flash('error_msg', 'Username and password are required');
+                console.log('Missing credentials:', { username: !!username, password: !!password });
+                
+                // FIXED: Check if flash is available before using it
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('error_msg', 'Username and password are required');
+                }
                 return res.redirect('/admin/login');
             }
 
-            const user = await User.authenticate(username, password);
+            console.log('Attempting login for username:', username);
+
+            // FIXED: Add error handling for User.authenticate
+            let user;
+            try {
+                user = await User.authenticate(username, password);
+                console.log('Authentication result:', user ? 'success' : 'failed');
+            } catch (authError) {
+                console.error('Authentication error:', authError);
+                
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('error_msg', 'Authentication service unavailable');
+                }
+                return res.redirect('/admin/login');
+            }
             
-            if (!user || user.role !== 'admin') {
-                req.flash('error_msg', 'Invalid credentials or insufficient permissions');
+            if (!user) {
+                console.log('Invalid credentials for username:', username);
+                
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('error_msg', 'Invalid username or password');
+                }
                 return res.redirect('/admin/login');
             }
 
+            if (user.role !== 'admin') {
+                console.log('Insufficient permissions for user:', username, 'role:', user.role);
+                
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('error_msg', 'Insufficient permissions. Admin access required.');
+                }
+                return res.redirect('/admin/login');
+            }
+
+            // FIXED: Ensure session exists before setting user
+            if (!req.session) {
+                console.error('Session not available');
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('error_msg', 'Session service unavailable');
+                }
+                return res.redirect('/admin/login');
+            }
+
+            // Set session user
             req.session.user = {
                 id: user.id,
                 username: user.username,
@@ -1457,10 +1502,21 @@ static async login(req, res) {
                 role: user.role
             };
 
+            console.log('Login successful for user:', username);
+            
+            if (req.flash && typeof req.flash === 'function') {
+                req.flash('success_msg', 'Login successful');
+            }
+
             res.redirect('/admin');
         } catch (error) {
             console.error('Login error:', error);
-            req.flash('error_msg', 'Login failed. Please try again.');
+            
+            // FIXED: Safe error handling
+            if (req.flash && typeof req.flash === 'function') {
+                req.flash('error_msg', 'Login failed. Please try again.');
+            }
+            
             res.redirect('/admin/login');
         }
     }

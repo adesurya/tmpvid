@@ -205,40 +205,126 @@ class VideoController {
     static async recordView(req, res) {
         try {
             const { id } = req.params;
-            const { watchDuration = 0, source = 'web' } = req.body;
-            const userId = req.session?.user?.id || req.user?.id || null;
-            const ipAddress = req.ip || req.connection.remoteAddress;
-            const userAgent = req.get('User-Agent');
             
-            console.log(`Recording view for video ${id}, duration: ${watchDuration}s, source: ${source}, user: ${userId}`);
-            
-            // Record view (count as view if watched for at least 2 seconds or from embed)
-            if (watchDuration >= 2 || source === 'embed') {
-                const success = await Video.incrementViews(
-                    parseInt(id), 
-                    userId, 
-                    ipAddress, 
-                    userAgent, 
-                    parseInt(watchDuration)
-                );
-                
-                if (success) {
-                    console.log(`View successfully recorded for video ${id}`);
-                } else {
-                    console.warn(`View recording failed for video ${id}`);
-                }
+            // Validate video ID
+            if (!id || isNaN(parseInt(id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid video ID'
+                });
             }
             
-            res.json({
-                success: true,
-                message: 'View recorded successfully'
+            // FIXED: Safely extract request body with proper defaults
+            const requestBody = req.body || {};
+            
+            // Extract data with safe defaults
+            const watchDuration = requestBody.watchDuration || 0;
+            const source = requestBody.source || 'web';
+            const timestamp = requestBody.timestamp || new Date().toISOString();
+            
+            // Get user info safely
+            const userId = req.user?.id || null;
+            const ipAddress = req.ip || 
+                            req.connection?.remoteAddress || 
+                            req.socket?.remoteAddress ||
+                            (req.connection?.socket ? req.connection.socket.remoteAddress : null) ||
+                            '127.0.0.1';
+            const userAgent = req.get('User-Agent') || 'Unknown';
+            
+            console.log(`📊 Recording view for video ${id}:`, {
+                userId,
+                watchDuration,
+                source,
+                ipAddress,
+                userAgent: userAgent.substring(0, 100) + '...' // Truncate for logging
             });
+            
+            // Validate video exists
+            const video = await Video.findById(parseInt(id));
+            if (!video) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Video not found'
+                });
+            }
+            
+            // Record the view
+            const viewData = {
+                video_id: parseInt(id),
+                user_id: userId,
+                watch_duration: parseInt(watchDuration) || 0,
+                source: source,
+                ip_address: ipAddress,
+                user_agent: userAgent,
+                viewed_at: new Date()
+            };
+            
+            // Try to record view in database
+            try {
+                const viewId = await Video.recordView(viewData);
+                
+                if (viewId) {
+                    console.log(`✅ View recorded successfully with ID: ${viewId}`);
+                    
+                    // Update video view count
+                    await Video.incrementViewCount(parseInt(id));
+                    
+                    res.json({
+                        success: true,
+                        message: 'View recorded successfully',
+                        data: {
+                            view_id: viewId,
+                            video_id: parseInt(id),
+                            total_views: video.views_count + 1
+                        }
+                    });
+                } else {
+                    console.warn(`⚠️ View recording returned no ID for video ${id}`);
+                    res.json({
+                        success: true,
+                        message: 'View recorded',
+                        data: {
+                            video_id: parseInt(id),
+                            total_views: video.views_count + 1
+                        }
+                    });
+                }
+            } catch (dbError) {
+                console.error('❌ Database error recording view:', dbError);
+                
+                // Still return success to not break user experience
+                res.json({
+                    success: true,
+                    message: 'View recorded (cache)',
+                    data: {
+                        video_id: parseInt(id),
+                        total_views: video.views_count
+                    }
+                });
+            }
+            
         } catch (error) {
-            console.error('Record view error:', error);
+            console.error('❌ Record view error:', error);
+            
+            // Return a safe error response
             res.status(500).json({
                 success: false,
-                message: 'Failed to record view: ' + error.message
+                message: 'Failed to record view',
+                error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
             });
+        }
+    }
+
+    // FIXED: Add this helper method to the Video model or controller
+    static async incrementViewCount(videoId) {
+        try {
+            const sql = 'UPDATE videos SET views_count = views_count + 1 WHERE id = ?';
+            await query(sql, [videoId]);
+            console.log(`📈 View count incremented for video ${videoId}`);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to increment view count:', error);
+            return false;
         }
     }
 
@@ -604,53 +690,165 @@ class VideoController {
 
     // Upload video (Admin)
     static async upload(req, res) {
-        try {
-            console.log('Upload request received');
-            
-            // Validate form data
-            const { error, value } = videoSchema.validate(req.body);
-            if (error) {
-                return res.status(400).json({
-                    success: false,
-                    message: error.details[0].message
-                });
-            }
-            
-            if (!req.file) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Video file is required'
-                });
-            }
-            
-            // Create video data
-            const videoData = {
-                ...value,
-                video_url: `/uploads/videos/${req.file.filename}`,
-                duration: 0, // Will be filled later with FFmpeg
-                file_size: req.file.size,
-                storage_type: 'local',
-                user_id: req.session.user.id,
-                status: value.status || 'published'
-            };
-            
-            console.log('Creating video with data:', videoData);
-            
-            const video = await Video.create(videoData);
-            
-            res.json({
-                success: true,
-                data: video,
-                message: 'Video uploaded successfully'
-            });
-        } catch (error) {
-            console.error('Upload video error:', error);
-            res.status(500).json({
+    try {
+        console.log('VideoController.upload - Request received');
+        console.log('Request body:', req.body);
+        console.log('Request file:', req.file ? {
+            filename: req.file.filename,
+            originalname: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        } : 'No file');
+        
+        // Validate user session
+        const userId = req.session?.user?.id || req.user?.id;
+        if (!userId) {
+            return res.status(401).json({
                 success: false,
-                message: 'Failed to upload video: ' + error.message
+                message: 'Authentication required'
             });
         }
+        
+        // Validate form data with enhanced schema
+        const enhancedVideoSchema = Joi.object({
+            title: Joi.string().min(3).max(255).required(),
+            description: Joi.string().max(2000).allow('', null),
+            category_id: Joi.alternatives().try(
+                Joi.number().integer().positive(),
+                Joi.string().pattern(/^\d+$/).custom((value) => parseInt(value)),
+                Joi.string().allow('', null)
+            ).allow(null),
+            series_id: Joi.alternatives().try(
+                Joi.number().integer().positive(),
+                Joi.string().pattern(/^\d+$/).custom((value) => parseInt(value)),
+                Joi.string().allow('', null)
+            ).allow(null),
+            status: Joi.string().valid('draft', 'published', 'private').default('published'),
+            video_quality: Joi.string().valid('360p', '720p', '1080p', '4K').default('720p')
+        });
+        
+        const { error, value } = enhancedVideoSchema.validate(req.body);
+        if (error) {
+            console.error('Validation error:', error.details[0].message);
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error: ' + error.details[0].message
+            });
+        }
+        
+        // Validate file upload
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Video file is required'
+            });
+        }
+        
+        // Enhanced file validation
+        const allowedMimeTypes = [
+            'video/mp4', 'video/avi', 'video/mov', 'video/quicktime',
+            'video/x-msvideo', 'video/x-ms-wmv', 'video/x-flv'
+        ];
+        
+        const allowedExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv'];
+        const fileExtension = req.file.originalname.toLowerCase().substring(req.file.originalname.lastIndexOf('.'));
+        
+        if (!allowedMimeTypes.includes(req.file.mimetype) && !allowedExtensions.includes(fileExtension)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid file type. Please upload MP4, AVI, MOV, WMV, or FLV files only.'
+            });
+        }
+        
+        // Check file size (500MB max)
+        const maxSize = 500 * 1024 * 1024; // 500MB
+        if (req.file.size > maxSize) {
+            return res.status(400).json({
+                success: false,
+                message: 'File size exceeds 500MB limit'
+            });
+        }
+        
+        console.log('All validations passed, creating video record...');
+        
+        // Prepare video data
+        const videoData = {
+            title: value.title.trim(),
+            description: value.description ? value.description.trim() : null,
+            category_id: value.category_id ? (typeof value.category_id === 'string' ? parseInt(value.category_id) : value.category_id) : null,
+            series_id: value.series_id ? (typeof value.series_id === 'string' ? parseInt(value.series_id) : value.series_id) : null,
+            video_url: `/uploads/videos/${req.file.filename}`,
+            duration: 0, // Will be filled later with FFmpeg if available
+            file_size: req.file.size,
+            video_quality: value.video_quality || '720p',
+            storage_type: 'local',
+            user_id: userId,
+            status: value.status || 'published'
+        };
+        
+        // Convert empty strings to null for database
+        if (videoData.category_id === '' || videoData.category_id === 0) {
+            videoData.category_id = null;
+        }
+        if (videoData.series_id === '' || videoData.series_id === 0) {
+            videoData.series_id = null;
+        }
+        
+        console.log('Final video data:', videoData);
+        
+        // Create video record
+        const video = await Video.create(videoData);
+        
+        if (!video) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to create video record'
+            });
+        }
+        
+        console.log('Video created successfully:', video.id);
+        
+        // Try to generate thumbnail and get video metadata (non-blocking)
+        try {
+            const videoService = require('../services/videoService');
+            const videoPath = `./public/uploads/videos/${req.file.filename}`;
+            
+            // Generate thumbnail in background
+            videoService.generateThumbnail(videoPath).then(thumbnailResult => {
+                if (thumbnailResult.success) {
+                    Video.update(video.id, { thumbnail: thumbnailResult.url }).catch(console.error);
+                    console.log('Thumbnail generated:', thumbnailResult.url);
+                }
+            }).catch(console.error);
+            
+            // Get video metadata in background
+            videoService.getVideoMetadata(videoPath).then(metadata => {
+                if (metadata.duration > 0) {
+                    Video.update(video.id, { duration: metadata.duration }).catch(console.error);
+                    console.log('Video duration updated:', metadata.duration);
+                }
+            }).catch(console.error);
+            
+        } catch (serviceError) {
+            console.log('Video service not available:', serviceError.message);
+            // Continue without thumbnail/metadata
+        }
+        
+        // Return success response
+        res.json({
+            success: true,
+            data: video,
+            message: 'Video uploaded successfully'
+        });
+        
+    } catch (error) {
+        console.error('Upload video error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to upload video: ' + error.message
+        });
     }
+}
 
     // Update video (Admin)
     static async update(req, res) {

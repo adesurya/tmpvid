@@ -10,41 +10,47 @@ const seriesSchema = Joi.object({
 });
 
 class SeriesController {
+    // Get all series for API
     static async getAll(req, res) {
         try {
+            console.log('SeriesController.getAll - Request received');
+            
             const series = await Series.getAll();
             
-            if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-                return res.json({
-                    success: true,
-                    data: series
-                });
-            }
+            console.log(`SeriesController.getAll - Returning ${series.length} series`);
             
-            res.render('admin/series', {
-                title: 'Manage Series',
-                series: series
+            res.json({
+                success: true,
+                data: series,
+                message: `Found ${series.length} series`
             });
         } catch (error) {
-            console.error('Get series error:', error);
+            console.error('SeriesController.getAll error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to get series'
+                message: 'Failed to load series',
+                data: []
             });
         }
     }
 
+    // Create new series
     static async create(req, res) {
         try {
-            const { error, value } = seriesSchema.validate(req.body);
-            if (error) {
+            const { title, description, status } = req.body;
+            
+            if (!title || title.trim().length < 2) {
                 return res.status(400).json({
                     success: false,
-                    message: error.details[0].message
+                    message: 'Series title is required and must be at least 2 characters'
                 });
             }
-
-            const series = await Series.create(value);
+            
+            const series = await Series.create({
+                title: title.trim(),
+                description: description ? description.trim() : null,
+                status: status || 'active'
+            });
             
             res.json({
                 success: true,
@@ -52,7 +58,7 @@ class SeriesController {
                 message: 'Series created successfully'
             });
         } catch (error) {
-            console.error('Create series error:', error);
+            console.error('SeriesController.create error:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to create series'
@@ -60,24 +66,28 @@ class SeriesController {
         }
     }
 
+    // Update series
     static async update(req, res) {
         try {
             const { id } = req.params;
-            const { error, value } = seriesSchema.validate(req.body);
+            const updateData = req.body;
             
-            if (error) {
-                return res.status(400).json({
+            const series = await Series.update(parseInt(id), updateData);
+            
+            if (!series) {
+                return res.status(404).json({
                     success: false,
-                    message: error.details[0].message
+                    message: 'Series not found'
                 });
             }
-
+            
             res.json({
                 success: true,
+                data: series,
                 message: 'Series updated successfully'
             });
         } catch (error) {
-            console.error('Update series error:', error);
+            console.error('SeriesController.update error:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to update series'
@@ -85,16 +95,26 @@ class SeriesController {
         }
     }
 
+    // Delete series
     static async delete(req, res) {
         try {
             const { id } = req.params;
+            
+            const deleted = await Series.delete(parseInt(id));
+            
+            if (!deleted) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Series not found'
+                });
+            }
             
             res.json({
                 success: true,
                 message: 'Series deleted successfully'
             });
         } catch (error) {
-            console.error('Delete series error:', error);
+            console.error('SeriesController.delete error:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to delete series'

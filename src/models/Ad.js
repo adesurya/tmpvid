@@ -1,234 +1,339 @@
-// src/models/Ad.js
-const { query, queryOne, transaction } = require('../config/database');
+// src/models/Ad.js - COMPLETE FIXED VERSION
+const { query, queryOne, transaction } = require('../database/connection');
 
 class Ad {
-    constructor(data = {}) {
+    constructor(data) {
         this.id = data.id;
         this.title = data.title;
         this.description = data.description;
-        this.type = data.type; // 'video' or 'image'
-        this.media_url = data.media_url; // video or image URL
-        this.click_url = data.click_url; // destination URL when clicked
-        this.duration = data.duration; // in seconds for video ads
-        this.slot_position = data.slot_position; // 1-5
-        this.impressions_count = data.impressions_count || 0;
-        this.clicks_count = data.clicks_count || 0;
-        this.is_active = data.is_active;
+        this.type = data.type;
+        this.media_url = data.media_url;
+        this.google_ads_script = data.google_ads_script;
+        this.click_url = data.click_url;
+        this.open_new_tab = Boolean(data.open_new_tab);
+        this.duration = parseInt(data.duration) || 0;
+        this.slot_position = parseInt(data.slot_position);
+        this.impressions_count = parseInt(data.impressions_count) || 0;
+        this.clicks_count = parseInt(data.clicks_count) || 0;
+        this.is_active = Boolean(data.is_active);
         this.start_date = data.start_date;
         this.end_date = data.end_date;
         this.created_at = data.created_at;
         this.updated_at = data.updated_at;
     }
 
-    // Initialize ads table
+    // FIXED: Initialize table with proper structure
     static async initializeTable() {
         try {
-            await query(`
-                CREATE TABLE IF NOT EXISTS ads (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    title VARCHAR(255) NOT NULL,
-                    description TEXT,
-                    type ENUM('video', 'image') NOT NULL DEFAULT 'image',
-                    media_url VARCHAR(500) NOT NULL,
-                    click_url VARCHAR(500),
-                    duration INT DEFAULT 0,
-                    slot_position INT NOT NULL CHECK (slot_position BETWEEN 1 AND 5),
-                    impressions_count INT DEFAULT 0,
-                    clicks_count INT DEFAULT 0,
-                    is_active BOOLEAN DEFAULT true,
-                    start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    end_date DATETIME NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_ads_slot_position (slot_position),
-                    INDEX idx_ads_is_active (is_active),
-                    INDEX idx_ads_dates (start_date, end_date)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            console.log('🔧 Initializing ads table...');
+            
+            // Check if table exists
+            const tableExists = await queryOne(`
+                SELECT COUNT(*) as count 
+                FROM information_schema.tables 
+                WHERE table_schema = DATABASE() 
+                AND table_name = 'ads'
             `);
-
-            // Create ad impressions tracking table
-            await query(`
-                CREATE TABLE IF NOT EXISTS ad_impressions (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    ad_id INT NOT NULL,
-                    user_id INT NULL,
-                    ip_address VARCHAR(45),
-                    user_agent TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE,
-                    INDEX idx_ad_impressions_ad_id (ad_id),
-                    INDEX idx_ad_impressions_created_at (created_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            `);
-
-            // Create ad clicks tracking table
-            await query(`
-                CREATE TABLE IF NOT EXISTS ad_clicks (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    ad_id INT NOT NULL,
-                    user_id INT NULL,
-                    ip_address VARCHAR(45),
-                    user_agent TEXT,
-                    referrer VARCHAR(500),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE,
-                    INDEX idx_ad_clicks_ad_id (ad_id),
-                    INDEX idx_ad_clicks_created_at (created_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            `);
-
-            console.log('✅ Ads tables initialized successfully');
+            
+            if (tableExists.count === 0) {
+                console.log('📋 Creating ads table...');
+                
+                await query(`
+                    CREATE TABLE ads (
+                        id INT NOT NULL AUTO_INCREMENT,
+                        title VARCHAR(255) NOT NULL,
+                        description TEXT,
+                        type ENUM('video','image','google_ads') NOT NULL,
+                        media_url VARCHAR(500) DEFAULT NULL COMMENT 'Media file URL for image/video ads, null for Google Ads',
+                        click_url VARCHAR(500) DEFAULT NULL COMMENT 'Destination URL when ad is clicked, optional for Google Ads',
+                        duration INT DEFAULT 0,
+                        slot_position INT NOT NULL,
+                        impressions_count INT DEFAULT 0,
+                        clicks_count INT DEFAULT 0,
+                        is_active TINYINT(1) DEFAULT 1,
+                        start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        end_date DATETIME DEFAULT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        open_new_tab TINYINT(1) DEFAULT 1,
+                        google_ads_script TEXT COMMENT 'Google Ads script content for google_ads type',
+                        PRIMARY KEY (id),
+                        KEY idx_ads_slot_position (slot_position),
+                        KEY idx_ads_is_active (is_active),
+                        KEY idx_ads_dates (start_date, end_date),
+                        KEY idx_ads_type (type),
+                        CONSTRAINT ads_chk_1 CHECK (slot_position BETWEEN 1 AND 5),
+                        CONSTRAINT ads_chk_counts CHECK (impressions_count >= 0 AND clicks_count >= 0),
+                        CONSTRAINT ads_chk_duration CHECK (duration >= 0 AND duration <= 3600),
+                        CONSTRAINT ads_chk_slot_position CHECK (slot_position BETWEEN 1 AND 5)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+                    COMMENT='Advertisement management table supporting image, video, and Google Ads'
+                `);
+            }
+            
+            // Create analytics tables if they don't exist
+            await this.initializeAnalyticsTables();
+            
+            console.log('✅ Ads table initialized successfully');
+            return true;
         } catch (error) {
-            console.error('❌ Error initializing ads tables:', error);
+            console.error('❌ Initialize ads table error:', error);
             throw error;
         }
     }
 
-    // Create new ad
+    // Initialize analytics tables
+    static async initializeAnalyticsTables() {
+        try {
+            // Ad impressions table
+            await query(`
+                CREATE TABLE IF NOT EXISTS ad_impressions (
+                    id INT NOT NULL AUTO_INCREMENT,
+                    ad_id INT NOT NULL,
+                    user_id INT NULL,
+                    ip_address VARCHAR(45) NOT NULL,
+                    user_agent TEXT,
+                    video_index INT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    KEY idx_ad_impressions_ad_id (ad_id),
+                    KEY idx_ad_impressions_created_at (created_at),
+                    FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+            
+            // Ad clicks table
+            await query(`
+                CREATE TABLE IF NOT EXISTS ad_clicks (
+                    id INT NOT NULL AUTO_INCREMENT,
+                    ad_id INT NOT NULL,
+                    user_id INT NULL,
+                    ip_address VARCHAR(45) NOT NULL,
+                    user_agent TEXT,
+                    referrer VARCHAR(500),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    KEY idx_ad_clicks_ad_id (ad_id),
+                    KEY idx_ad_clicks_created_at (created_at),
+                    FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+            
+            console.log('✅ Analytics tables initialized');
+        } catch (error) {
+            console.error('❌ Initialize analytics tables error:', error);
+            throw error;
+        }
+    }
+
+    // FIXED: Create new ad
     static async create(adData) {
         try {
+            console.log('📝 Creating ad with data:', adData);
+            
             const sql = `
                 INSERT INTO ads (
-                    title, description, type, media_url, click_url, 
-                    duration, slot_position, is_active, start_date, end_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    title, description, type, media_url, google_ads_script,
+                    click_url, open_new_tab, duration, slot_position,
+                    is_active, start_date, end_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             
-            const params = [
+            const values = [
                 adData.title,
                 adData.description || null,
                 adData.type,
-                adData.media_url,
+                adData.media_url || null,
+                adData.google_ads_script || null,
                 adData.click_url || null,
-                adData.duration || 0,
-                adData.slot_position,
-                adData.is_active !== undefined ? adData.is_active : true,
+                adData.open_new_tab ? 1 : 0,
+                parseInt(adData.duration) || 0,
+                parseInt(adData.slot_position),
+                adData.is_active ? 1 : 0,
                 adData.start_date || new Date(),
                 adData.end_date || null
             ];
             
-            const result = await query(sql, params);
-            return await this.findById(result.insertId);
+            const result = await query(sql, values);
+            
+            if (result.insertId) {
+                console.log('✅ Ad created with ID:', result.insertId);
+                return await this.findById(result.insertId);
+            } else {
+                throw new Error('Failed to create ad - no insert ID returned');
+            }
         } catch (error) {
-            console.error('Create ad error:', error);
+            console.error('❌ Create ad error:', error);
             throw error;
         }
     }
 
-    // Find ad by ID
+    // FIXED: Find ad by ID
     static async findById(id) {
         try {
+            if (!id || isNaN(parseInt(id))) {
+                throw new Error('Invalid ad ID');
+            }
+
             const sql = 'SELECT * FROM ads WHERE id = ?';
-            const ad = await queryOne(sql, [id]);
-            return ad ? new Ad(ad) : null;
+            const result = await queryOne(sql, [parseInt(id)]);
+            
+            if (result) {
+                return new Ad(result);
+            }
+            
+            return null;
         } catch (error) {
-            console.error('Find ad by ID error:', error);
+            console.error('❌ Find ad by ID error:', error);
             throw error;
         }
     }
 
-    // Get active ads for video feed (ordered by slot position)
-    static async getActiveAdsForFeed() {
+    // FIXED: Update ad
+    static async update(id, updateData) {
         try {
-            const sql = `
-                SELECT * FROM ads 
-                WHERE is_active = true 
-                    AND (start_date IS NULL OR start_date <= NOW())
-                    AND (end_date IS NULL OR end_date >= NOW())
-                ORDER BY slot_position ASC, created_at ASC
-            `;
+            if (!id || isNaN(parseInt(id))) {
+                throw new Error('Invalid ad ID');
+            }
+
+            console.log('📝 Updating ad ID:', id, 'with data:', updateData);
             
-            const ads = await query(sql);
-            return ads.map(ad => new Ad(ad));
+            const setParts = [];
+            const values = [];
+            
+            // Build dynamic update query
+            const allowedFields = [
+                'title', 'description', 'type', 'media_url', 'google_ads_script',
+                'click_url', 'open_new_tab', 'duration', 'slot_position',
+                'is_active', 'start_date', 'end_date'
+            ];
+            
+            for (const field of allowedFields) {
+                if (updateData.hasOwnProperty(field)) {
+                    setParts.push(`${field} = ?`);
+                    
+                    if (field === 'open_new_tab' || field === 'is_active') {
+                        values.push(updateData[field] ? 1 : 0);
+                    } else if (field === 'duration' || field === 'slot_position') {
+                        values.push(parseInt(updateData[field]) || 0);
+                    } else {
+                        values.push(updateData[field]);
+                    }
+                }
+            }
+            
+            if (setParts.length === 0) {
+                throw new Error('No valid fields to update');
+            }
+            
+            setParts.push('updated_at = NOW()');
+            values.push(parseInt(id));
+            
+            const sql = `UPDATE ads SET ${setParts.join(', ')} WHERE id = ?`;
+            
+            const result = await query(sql, values);
+            
+            if (result.affectedRows > 0) {
+                console.log('✅ Ad updated successfully');
+                return await this.findById(id);
+            } else {
+                throw new Error('Ad not found or no changes made');
+            }
         } catch (error) {
-            console.error('Get active ads for feed error:', error);
-            return [];
+            console.error('❌ Update ad error:', error);
+            throw error;
         }
     }
 
-    // Get ad by slot position
-    static async getAdBySlot(slotPosition) {
+    // FIXED: Delete ad
+    static async delete(id) {
         try {
-            const sql = `
-                SELECT * FROM ads 
-                WHERE slot_position = ? 
-                    AND is_active = true 
-                    AND (start_date IS NULL OR start_date <= NOW())
-                    AND (end_date IS NULL OR end_date >= NOW())
-                ORDER BY created_at DESC
-                LIMIT 1
-            `;
+            if (!id || isNaN(parseInt(id))) {
+                throw new Error('Invalid ad ID');
+            }
+
+            const sql = 'DELETE FROM ads WHERE id = ?';
+            const result = await query(sql, [parseInt(id)]);
             
-            const ad = await queryOne(sql, [slotPosition]);
-            return ad ? new Ad(ad) : null;
+            console.log('🗑️ Delete result:', result);
+            return result.affectedRows > 0;
         } catch (error) {
-            console.error('Get ad by slot error:', error);
-            return null;
+            console.error('❌ Delete ad error:', error);
+            throw error;
         }
     }
 
-    // Get all ads for admin (with pagination)
-    static async getAdminAds(options = {}) {
+    // FIXED: Get all ads with pagination and filters
+    static async getAll(options = {}) {
         try {
-            const { page = 1, limit = 20, status = null, slot = null, type = null } = options;
-            
+            const {
+                page = 1,
+                limit = 10,
+                status = null,
+                type = null,
+                slot = null
+            } = options;
+
             let sql = 'SELECT * FROM ads WHERE 1=1';
-            const params = [];
-            
-            if (status !== null) {
-                sql += ' AND is_active = ?';
-                params.push(status === 'active');
+            const values = [];
+
+            // Apply filters
+            if (status === 'active') {
+                sql += ' AND is_active = 1';
+            } else if (status === 'inactive') {
+                sql += ' AND is_active = 0';
             }
-            
-            if (slot) {
-                sql += ' AND slot_position = ?';
-                params.push(parseInt(slot));
-            }
-            
-            if (type) {
+
+            if (type && ['image', 'video', 'google_ads'].includes(type)) {
                 sql += ' AND type = ?';
-                params.push(type);
+                values.push(type);
             }
-            
+
+            if (slot && !isNaN(parseInt(slot))) {
+                sql += ' AND slot_position = ?';
+                values.push(parseInt(slot));
+            }
+
+            // Add ordering
             sql += ' ORDER BY slot_position ASC, created_at DESC';
-            
-            // Pagination
-            const offset = (parseInt(page) - 1) * parseInt(limit);
-            const paginatedSql = sql + ` LIMIT ? OFFSET ?`;
-            const paginatedParams = [...params, parseInt(limit), offset];
-            
-            // Count query
-            const countSql = `SELECT COUNT(*) as total FROM ads WHERE 1=1` + 
-                             (status !== null ? ' AND is_active = ?' : '') +
-                             (slot ? ' AND slot_position = ?' : '') +
-                             (type ? ' AND type = ?' : '');
+
+            // Add pagination
+            const pageNum = Math.max(1, parseInt(page));
+            const limitNum = Math.max(1, Math.min(100, parseInt(limit)));
+            const offset = (pageNum - 1) * limitNum;
+
+            const paginatedSql = sql + ' LIMIT ? OFFSET ?';
+            const paginatedValues = [...values, limitNum, offset];
+
+            // Get total count
+            const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total');
             
             const [ads, countResult] = await Promise.all([
-                query(paginatedSql, paginatedParams),
-                query(countSql, params)
+                query(paginatedSql, paginatedValues),
+                query(countSql, values)
             ]);
-            
+
             const total = countResult[0]?.total || 0;
-            const totalPages = Math.ceil(total / parseInt(limit));
-            
+            const totalPages = Math.ceil(total / limitNum);
+
             return {
                 data: ads.map(ad => new Ad(ad)),
                 pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
+                    page: pageNum,
+                    limit: limitNum,
                     total: total,
                     totalPages: totalPages,
-                    hasNext: parseInt(page) < totalPages,
-                    hasPrev: parseInt(page) > 1
+                    hasNext: pageNum < totalPages,
+                    hasPrev: pageNum > 1
                 }
             };
         } catch (error) {
-            console.error('Get admin ads error:', error);
+            console.error('❌ Get all ads error:', error);
             return {
                 data: [],
                 pagination: {
                     page: 1,
-                    limit: 20,
+                    limit: 10,
                     total: 0,
                     totalPages: 0,
                     hasNext: false,
@@ -238,105 +343,418 @@ class Ad {
         }
     }
 
-    // Update ad
-    static async update(id, updateData) {
+    // FIXED: Get admin ads (alias for getAll)
+    static async getAdminAds(options = {}) {
+        return await this.getAll(options);
+    }
+
+    // FIXED: Get ad by slot position
+    static async getAdBySlot(slotPosition) {
         try {
-            const fields = [];
-            const params = [];
+            if (!slotPosition || isNaN(parseInt(slotPosition))) {
+                console.warn('⚠️ Invalid slot position:', slotPosition);
+                return null;
+            }
+
+            const slot = parseInt(slotPosition);
+            if (slot < 1 || slot > 5) {
+                console.warn('⚠️ Slot position out of range:', slot);
+                return null;
+            }
+
+            const sql = `
+                SELECT * FROM ads 
+                WHERE slot_position = ? 
+                    AND is_active = 1 
+                    AND (start_date IS NULL OR start_date <= NOW())
+                    AND (end_date IS NULL OR end_date >= NOW())
+                ORDER BY created_at DESC 
+                LIMIT 1
+            `;
             
-            Object.keys(updateData).forEach(key => {
-                if (updateData[key] !== undefined) {
-                    fields.push(`${key} = ?`);
-                    params.push(updateData[key]);
+            const result = await queryOne(sql, [slot]);
+            
+            if (result) {
+                console.log(`✅ Found ad for slot ${slot}: ${result.title} (${result.type})`);
+                return new Ad(result);
+            } else {
+                console.log(`❌ No active ad found for slot ${slot}`);
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ Get ad by slot error:', error);
+            return null;
+        }
+    }
+
+    // FIXED: Record ad impression
+    static async recordImpression(adId, userId = null, ipAddress = null, userAgent = null, videoIndex = null) {
+        try {
+            if (!adId || isNaN(parseInt(adId))) {
+                console.warn('⚠️ Invalid ad ID for impression:', adId);
+                return false;
+            }
+
+            // Validate ad exists and is active
+            const ad = await this.findById(adId);
+            if (!ad) {
+                console.warn('⚠️ Ad not found for impression:', adId);
+                return false;
+            }
+            
+            if (!ad.is_active) {
+                console.warn('⚠️ Ad is inactive for impression:', adId);
+                return false;
+            }
+
+            await transaction(async (connection) => {
+                try {
+                    // Record detailed impression
+                    await connection.query(
+                        `INSERT INTO ad_impressions (ad_id, user_id, ip_address, user_agent, video_index, created_at) 
+                        VALUES (?, ?, ?, ?, ?, NOW())`,
+                        [
+                            parseInt(adId), 
+                            userId ? parseInt(userId) : null, 
+                            ipAddress || '127.0.0.1', 
+                            userAgent ? userAgent.substring(0, 500) : 'Unknown', // Limit length
+                            videoIndex ? parseInt(videoIndex) : null
+                        ]
+                    );
+                    
+                    // Update impressions count
+                    await connection.query(
+                        'UPDATE ads SET impressions_count = impressions_count + 1, updated_at = NOW() WHERE id = ?',
+                        [parseInt(adId)]
+                    );
+                    
+                    console.log(`📊 Ad impression recorded for ad ${adId}`);
+                } catch (innerError) {
+                    console.error('❌ Failed to record impression in transaction:', innerError);
+                    throw innerError;
                 }
             });
             
-            if (fields.length === 0) {
-                throw new Error('No fields to update');
-            }
-            
-            params.push(id);
-            
-            const sql = `UPDATE ads SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
-            await query(sql, params);
-            
-            return await this.findById(id);
-        } catch (error) {
-            console.error('Update ad error:', error);
-            throw error;
-        }
-    }
-
-    // Delete ad
-    static async delete(id) {
-        try {
-            const sql = 'DELETE FROM ads WHERE id = ?';
-            const result = await query(sql, [id]);
-            return result.affectedRows > 0;
-        } catch (error) {
-            console.error('Delete ad error:', error);
-            throw error;
-        }
-    }
-
-    // Record ad impression
-    static async recordImpression(adId, userId = null, ipAddress = null, userAgent = null) {
-        try {
-            await transaction(async (connection) => {
-                // Record detailed impression
-                await connection.query(
-                    'INSERT INTO ad_impressions (ad_id, user_id, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, NOW())',
-                    [adId, userId, ipAddress, userAgent]
-                );
-                
-                // Update impressions count
-                await connection.query(
-                    'UPDATE ads SET impressions_count = impressions_count + 1 WHERE id = ?',
-                    [adId]
-                );
-            });
-            
-            console.log(`Ad impression recorded for ad ${adId}`);
             return true;
         } catch (error) {
-            console.error('Record ad impression error:', error);
-            return false;
+            console.error('❌ Record impression error:', error);
+            
+            // Try to at least update the counter if detailed tracking fails
+            try {
+                await query(
+                    'UPDATE ads SET impressions_count = impressions_count + 1, updated_at = NOW() WHERE id = ? AND is_active = 1',
+                    [parseInt(adId)]
+                );
+                console.log(`📊 Basic impression count updated for ad ${adId}`);
+                return true;
+            } catch (fallbackError) {
+                console.error('❌ Fallback impression recording also failed:', fallbackError);
+                return false;
+            }
         }
     }
 
-    // Record ad click
+    // FIXED: Record ad click
     static async recordClick(adId, userId = null, ipAddress = null, userAgent = null, referrer = null) {
         try {
+            if (!adId || isNaN(parseInt(adId))) {
+                console.warn('⚠️ Invalid ad ID for click:', adId);
+                return false;
+            }
+
+            const ad = await this.findById(adId);
+            if (!ad) {
+                console.warn('⚠️ Ad not found for click:', adId);
+                return false;
+            }
+            
+            if (!ad.is_active) {
+                console.warn('⚠️ Ad is inactive for click:', adId);
+                return false;
+            }
+
+            if (ad.type === 'google_ads') {
+                console.log(`⚠️ Ad ${adId} is Google Ads - clicks managed by Google`);
+                return false;
+            }
+
+            if (!ad.click_url) {
+                console.warn('⚠️ Ad has no click URL:', adId);
+                return false;
+            }
+
             await transaction(async (connection) => {
-                // Record detailed click
-                await connection.query(
-                    'INSERT INTO ad_clicks (ad_id, user_id, ip_address, user_agent, referrer, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-                    [adId, userId, ipAddress, userAgent, referrer]
-                );
-                
-                // Update clicks count
-                await connection.query(
-                    'UPDATE ads SET clicks_count = clicks_count + 1 WHERE id = ?',
-                    [adId]
-                );
+                try {
+                    // Record detailed click
+                    await connection.query(
+                        `INSERT INTO ad_clicks (ad_id, user_id, ip_address, user_agent, referrer, created_at) 
+                        VALUES (?, ?, ?, ?, ?, NOW())`,
+                        [
+                            parseInt(adId), 
+                            userId ? parseInt(userId) : null, 
+                            ipAddress || '127.0.0.1', 
+                            userAgent ? userAgent.substring(0, 500) : 'Unknown', // Limit length
+                            referrer ? referrer.substring(0, 500) : '' // Limit length
+                        ]
+                    );
+                    
+                    // Update clicks count
+                    await connection.query(
+                        'UPDATE ads SET clicks_count = clicks_count + 1, updated_at = NOW() WHERE id = ?',
+                        [parseInt(adId)]
+                    );
+                    
+                    console.log(`🖱️ Ad click recorded for ad ${adId}`);
+                } catch (innerError) {
+                    console.error('❌ Failed to record click in transaction:', innerError);
+                    throw innerError;
+                }
             });
             
-            console.log(`Ad click recorded for ad ${adId}`);
             return true;
         } catch (error) {
-            console.error('Record ad click error:', error);
-            return false;
+            console.error('❌ Record click error:', error);
+            
+            // Try to at least update the counter if detailed tracking fails
+            try {
+                await query(
+                    'UPDATE ads SET clicks_count = clicks_count + 1, updated_at = NOW() WHERE id = ? AND is_active = 1',
+                    [parseInt(adId)]
+                );
+                console.log(`🖱️ Basic click count updated for ad ${adId}`);
+                return true;
+            } catch (fallbackError) {
+                console.error('❌ Fallback click recording also failed:', fallbackError);
+                return false;
+            }
         }
     }
 
-    // Get ad analytics
-    static async getAnalytics(adId, days = 30) {
+    static async getAdsBySlots() {
+        try {
+            const sql = `
+                SELECT * FROM ads 
+                WHERE is_active = 1 
+                    AND (start_date IS NULL OR start_date <= NOW())
+                    AND (end_date IS NULL OR end_date >= NOW())
+                ORDER BY slot_position ASC, created_at DESC
+            `;
+            
+            const results = await query(sql);
+            
+            // Group ads by slot position
+            const adsBySlots = {};
+            
+            // Initialize all slots
+            for (let i = 1; i <= 5; i++) {
+                adsBySlots[i] = [];
+            }
+            
+            // Group results by slot
+            if (Array.isArray(results)) {
+                results.forEach(adData => {
+                    const ad = new Ad(adData);
+                    const slot = ad.slot_position;
+                    
+                    if (slot >= 1 && slot <= 5) {
+                        adsBySlots[slot].push(ad);
+                    }
+                });
+            }
+            
+            console.log('📊 Ads by slots loaded:', {
+                slot1: adsBySlots[1].length,
+                slot2: adsBySlots[2].length,
+                slot3: adsBySlots[3].length,
+                slot4: adsBySlots[4].length,
+                slot5: adsBySlots[5].length
+            });
+            
+            return adsBySlots;
+        } catch (error) {
+            console.error('❌ Get ads by slots error:', error);
+            
+            // Return empty structure on error
+            const emptySlots = {};
+            for (let i = 1; i <= 5; i++) {
+                emptySlots[i] = [];
+            }
+            return emptySlots;
+        }
+    }
+
+    // FIXED: Enhanced error handling for database queries
+    static async safeQuery(sql, params = []) {
+        try {
+            return await query(sql, params);
+        } catch (error) {
+            console.error('❌ Database query error:', {
+                sql: sql.substring(0, 100) + '...',
+                params: params,
+                error: error.message
+            });
+            throw error;
+        }
+    }
+
+    static async safeQueryOne(sql, params = []) {
+        try {
+            return await queryOne(sql, params);
+        } catch (error) {
+            console.error('❌ Database queryOne error:', {
+                sql: sql.substring(0, 100) + '...',
+                params: params,
+                error: error.message
+            });
+            throw error;
+        }
+    }
+
+    static async healthCheck() {
+        try {
+            // Test basic database connection
+            const testQuery = 'SELECT COUNT(*) as count FROM ads LIMIT 1';
+            const result = await query(testQuery);
+            
+            if (result && result[0]) {
+                console.log('✅ Ad model health check passed');
+                return {
+                    healthy: true,
+                    message: 'Ad model is working correctly',
+                    total_ads: result[0].count
+                };
+            } else {
+                console.warn('⚠️ Ad model health check warning: no results');
+                return {
+                    healthy: false,
+                    message: 'Database query returned no results',
+                    total_ads: 0
+                };
+            }
+        } catch (error) {
+            console.error('❌ Ad model health check failed:', error);
+            return {
+                healthy: false,
+                message: `Health check failed: ${error.message}`,
+                error: error.message
+            };
+        }
+    }
+
+    // FIXED: Get dashboard summary
+    static async getDashboardSummary() {
         try {
             const sql = `
                 SELECT 
+                    COUNT(*) as total_ads,
+                    SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_ads,
+                    SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive_ads,
+                    COALESCE(SUM(impressions_count), 0) as total_impressions,
+                    COALESCE(SUM(clicks_count), 0) as total_clicks,
+                    CASE 
+                        WHEN SUM(impressions_count) > 0 
+                        THEN ROUND((SUM(clicks_count) / SUM(impressions_count)) * 100, 2)
+                        ELSE 0 
+                    END as overall_ctr,
+                    COUNT(CASE WHEN type = 'google_ads' THEN 1 END) as google_ads_count,
+                    COUNT(CASE WHEN type = 'image' THEN 1 END) as image_ads_count,
+                    COUNT(CASE WHEN type = 'video' THEN 1 END) as video_ads_count
+                FROM ads
+            `;
+            
+            const result = await queryOne(sql);
+            
+            if (!result) {
+                return {
+                    total_ads: 0, active_ads: 0, inactive_ads: 0,
+                    total_impressions: 0, total_clicks: 0, overall_ctr: 0,
+                    google_ads_count: 0, image_ads_count: 0, video_ads_count: 0
+                };
+            }
+            
+            return {
+                total_ads: parseInt(result.total_ads) || 0,
+                active_ads: parseInt(result.active_ads) || 0,
+                inactive_ads: parseInt(result.inactive_ads) || 0,
+                total_impressions: parseInt(result.total_impressions) || 0,
+                total_clicks: parseInt(result.total_clicks) || 0,
+                overall_ctr: parseFloat(result.overall_ctr) || 0,
+                google_ads_count: parseInt(result.google_ads_count) || 0,
+                image_ads_count: parseInt(result.image_ads_count) || 0,
+                video_ads_count: parseInt(result.video_ads_count) || 0
+            };
+        } catch (error) {
+            console.error('❌ Get dashboard summary error:', error);
+            return {
+                total_ads: 0, active_ads: 0, inactive_ads: 0,
+                total_impressions: 0, total_clicks: 0, overall_ctr: 0,
+                google_ads_count: 0, image_ads_count: 0, video_ads_count: 0
+            };
+        }
+    }
+
+    // FIXED: Get performance summary
+    static async getPerformanceSummary() {
+        try {
+            const sql = `
+                SELECT 
+                    a.id, a.title, a.slot_position, a.type,
+                    a.impressions_count, a.clicks_count,
+                    CASE 
+                        WHEN a.impressions_count > 0 
+                        THEN ROUND((a.clicks_count / a.impressions_count) * 100, 2)
+                        ELSE 0 
+                    END as ctr_percentage,
+                    a.is_active, a.created_at, a.click_url, a.open_new_tab,
+                    a.media_url, a.google_ads_script
+                FROM ads a
+                ORDER BY a.slot_position ASC, a.impressions_count DESC
+            `;
+            
+            const results = await query(sql);
+            return results.map(ad => new Ad(ad));
+        } catch (error) {
+            console.error('❌ Get performance summary error:', error);
+            return [];
+        }
+    }
+
+    // FIXED: Toggle ad status
+    static async toggleStatus(id) {
+        try {
+            if (!id || isNaN(parseInt(id))) {
+                throw new Error('Invalid ad ID');
+            }
+
+            const ad = await this.findById(id);
+            if (!ad) {
+                throw new Error('Advertisement not found');
+            }
+            
+            const newStatus = !ad.is_active;
+            await this.update(id, { is_active: newStatus });
+            
+            console.log(`🔄 Ad ${id} status toggled to: ${newStatus}`);
+            return newStatus;
+        } catch (error) {
+            console.error('❌ Toggle status error:', error);
+            throw error;
+        }
+    }
+
+    // FIXED: Get analytics
+    static async getAnalytics(adId, days = 30) {
+        try {
+            if (!adId || isNaN(parseInt(adId))) {
+                throw new Error('Invalid ad ID');
+            }
+
+            const daysNum = Math.max(1, Math.min(365, parseInt(days)));
+            
+            const impressionsSql = `
+                SELECT 
                     DATE(ai.created_at) as date,
-                    COUNT(*) as impressions,
-                    COUNT(DISTINCT ai.user_id) as unique_viewers
+                    COUNT(*) as impressions
                 FROM ad_impressions ai
                 WHERE ai.ad_id = ? 
                     AND ai.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -356,71 +774,105 @@ class Ad {
             `;
             
             const [impressions, clicks] = await Promise.all([
-                query(sql, [adId, days]),
-                query(clicksSql, [adId, days])
+                query(impressionsSql, [parseInt(adId), daysNum]),
+                query(clicksSql, [parseInt(adId), daysNum])
             ]);
             
-            return { impressions, clicks };
+            return { 
+                impressions: impressions || [], 
+                clicks: clicks || [],
+                period_days: daysNum
+            };
         } catch (error) {
-            console.error('Get ad analytics error:', error);
-            return { impressions: [], clicks: [] };
+            console.error('❌ Get analytics error:', error);
+            return { impressions: [], clicks: [], period_days: days };
         }
     }
 
-    // Get ads performance summary
-    static async getPerformanceSummary() {
+    // FIXED: Validate Google Ads script
+    static validateGoogleAdsScript(script) {
         try {
-            const sql = `
-                SELECT 
-                    a.id,
-                    a.title,
-                    a.slot_position,
-                    a.type,
-                    a.impressions_count,
-                    a.clicks_count,
-                    CASE 
-                        WHEN a.impressions_count > 0 
-                        THEN ROUND((a.clicks_count / a.impressions_count) * 100, 2)
-                        ELSE 0 
-                    END as ctr_percentage,
-                    a.is_active,
-                    a.created_at
-                FROM ads a
-                ORDER BY a.impressions_count DESC, a.clicks_count DESC
-            `;
+            if (!script || typeof script !== 'string') {
+                return { valid: false, message: 'Script is required' };
+            }
+
+            const trimmedScript = script.trim();
             
-            const results = await query(sql);
-            return results.map(ad => new Ad(ad));
+            if (trimmedScript.length < 10) {
+                return { valid: false, message: 'Script is too short' };
+            }
+
+            if (trimmedScript.length > 50000) {
+                return { valid: false, message: 'Script is too long' };
+            }
+
+            // Check for Google Ads patterns
+            const googleAdsPatterns = [
+                /googlesyndication/i,
+                /googleadservices/i,
+                /adsbygoogle/i,
+                /data-ad-client/i,
+                /data-ad-slot/i
+            ];
+
+            const hasGoogleAdsPattern = googleAdsPatterns.some(pattern => pattern.test(trimmedScript));
+            
+            if (!hasGoogleAdsPattern) {
+                return { 
+                    valid: true, 
+                    message: 'Script appears valid but may not be from Google Ads',
+                    warning: true 
+                };
+            }
+
+            return { valid: true, message: 'Google Ads script is valid' };
         } catch (error) {
-            console.error('Get ads performance summary error:', error);
-            return [];
+            return { valid: false, message: 'Error validating script: ' + error.message };
         }
     }
 
-    // Get ads count
+    // FIXED: Clone ad
+    static async cloneAd(adId, newTitle = null) {
+        try {
+            if (!adId || isNaN(parseInt(adId))) {
+                throw new Error('Invalid ad ID for cloning');
+            }
+
+            const originalAd = await this.findById(adId);
+            if (!originalAd) {
+                throw new Error('Original advertisement not found');
+            }
+            
+            const cloneData = {
+                title: newTitle || `${originalAd.title} (Copy)`,
+                description: originalAd.description,
+                type: originalAd.type,
+                media_url: originalAd.media_url,
+                google_ads_script: originalAd.google_ads_script,
+                click_url: originalAd.click_url,
+                open_new_tab: originalAd.open_new_tab,
+                duration: originalAd.duration,
+                slot_position: originalAd.slot_position,
+                is_active: false, // Start inactive
+                start_date: null,
+                end_date: null
+            };
+            
+            return await this.create(cloneData);
+        } catch (error) {
+            console.error('❌ Clone ad error:', error);
+            throw error;
+        }
+    }
+
+    // FIXED: Get count
     static async getCount() {
         try {
             const result = await queryOne('SELECT COUNT(*) as count FROM ads');
-            return result.count;
+            return parseInt(result.count) || 0;
         } catch (error) {
-            console.error('Get ads count error:', error);
+            console.error('❌ Get count error:', error);
             return 0;
-        }
-    }
-
-    // Toggle ad status
-    static async toggleStatus(id) {
-        try {
-            const ad = await this.findById(id);
-            if (!ad) throw new Error('Ad not found');
-            
-            const newStatus = !ad.is_active;
-            await this.update(id, { is_active: newStatus });
-            
-            return newStatus;
-        } catch (error) {
-            console.error('Toggle ad status error:', error);
-            throw error;
         }
     }
 }

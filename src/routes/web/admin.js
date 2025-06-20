@@ -1,4 +1,4 @@
-// src/routes/web/admin.js - Fixed version
+// src/routes/web/admin.js - FIXED VERSION (No duplicate flash middleware)
 const express = require('express');
 const router = express.Router();
 const AdminController = require('../../controllers/adminController');
@@ -6,8 +6,13 @@ const AdminController = require('../../controllers/adminController');
 // Debug middleware
 router.use((req, res, next) => {
     console.log(`[ADMIN-WEB] ${req.method} ${req.path}`);
+    console.log('Session available:', !!req.session);
+    console.log('Flash available:', typeof req.flash === 'function');
     next();
 });
+
+// FIXED: Don't add duplicate body parsing and flash middleware
+// These should be handled at the app level
 
 // Login routes (no auth required)
 router.get('/login', (req, res) => {
@@ -15,25 +20,34 @@ router.get('/login', (req, res) => {
     if (req.session && req.session.user && req.session.user.role === 'admin') {
         return res.redirect('/admin');
     }
+    
+    console.log('Rendering login page...');
+    
     res.render('admin/login', {
         title: 'Admin Login',
         layout: false
+        // Flash messages will be available via res.locals from app.js
     });
 });
 
+// FIXED: Simplified login POST route
 router.post('/login', AdminController.login);
 
 // Logout
 router.get('/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            console.error('Logout error:', err);
-        }
+    if (req.session) {
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Logout error:', err);
+            }
+            res.redirect('/admin/login');
+        });
+    } else {
         res.redirect('/admin/login');
-    });
+    }
 });
 
-// Admin authentication middleware (inline to avoid import issues)
+// Admin authentication middleware
 const adminAuth = (req, res, next) => {
     console.log('🔐 Admin auth check:', {
         hasSession: !!req.session,
@@ -56,6 +70,9 @@ const adminAuth = (req, res, next) => {
     }
     
     // Redirect to login page for web requests
+    if (req.flash && typeof req.flash === 'function') {
+        req.flash('error_msg', 'Please login to access admin panel');
+    }
     res.redirect('/admin/login');
 };
 
@@ -66,7 +83,8 @@ router.use(adminAuth);
 router.get('/', (req, res) => {
     res.render('admin/dashboard', {
         title: 'Admin Dashboard',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 
@@ -74,7 +92,8 @@ router.get('/', (req, res) => {
 router.get('/videos', (req, res) => {
     res.render('admin/videos', {
         title: 'Manage Videos',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 
@@ -82,7 +101,8 @@ router.get('/videos', (req, res) => {
 router.get('/categories', (req, res) => {
     res.render('admin/categories', {
         title: 'Manage Categories',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 
@@ -90,7 +110,8 @@ router.get('/categories', (req, res) => {
 router.get('/series', (req, res) => {
     res.render('admin/series', {
         title: 'Manage Series',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 
@@ -98,7 +119,8 @@ router.get('/series', (req, res) => {
 router.get('/users', (req, res) => {
     res.render('admin/users', {
         title: 'Manage Users',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 
@@ -106,7 +128,8 @@ router.get('/users', (req, res) => {
 router.get('/analytics', (req, res) => {
     res.render('admin/analytics', {
         title: 'Analytics Dashboard',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 
@@ -115,94 +138,102 @@ router.get('/api-dashboard', (req, res) => {
     try {
         res.render('admin/api-dashboard', {
             title: 'API & RSS Dashboard',
-            layout: 'layouts/admin'
+            layout: 'layouts/admin',
+            user: req.user
         });
     } catch (error) {
         console.error('Error rendering API dashboard:', error);
         res.status(500).render('error', {
             title: 'Error',
-            message: 'Failed to load API Dashboard. Please check if views/admin/api-dashboard.ejs exists.',
-            layout: 'layouts/admin'
+            message: 'Failed to load API Dashboard.',
+            layout: 'layouts/admin',
+            user: req.user
         });
     }
 });
 
-// Google Ads Management page - with safe error handling
+// Ads management
 router.get('/ads', (req, res) => {
     try {
-        console.log('🔍 Attempting to load ads management page...');
+        console.log('🔍 Loading ads management page...');
         
-        // Try to check if adsController exists
-        let adsControllerExists = false;
+        // Try to load ads controller
+        let AdsController;
         try {
-            require('../../controllers/adsController');
-            adsControllerExists = true;
-            console.log('✅ AdsController found');
+            AdsController = require('../../controllers/adController');
+            console.log('✅ AdController found');
         } catch (controllerError) {
-            console.warn('⚠️ AdsController not found:', controllerError.message);
-        }
-        
-        // Try to check if ads view exists
-        let adsViewExists = false;
-        try {
-            const fs = require('fs');
-            const path = require('path');
-            const viewPath = path.join(__dirname, '../../views/admin/ads.ejs');
-            adsViewExists = fs.existsSync(viewPath);
-            console.log('📄 Ads view exists:', adsViewExists);
-        } catch (viewError) {
-            console.warn('⚠️ Error checking ads view:', viewError.message);
-        }
-        
-        // If controller doesn't exist, show fallback page
-        if (!adsControllerExists) {
-            return res.render('admin/ads-fallback', {
+            console.warn('⚠️ AdController not found:', controllerError.message);
+            return res.render('admin/ads', {
                 title: 'Ads Management - Setup Required',
                 layout: 'layouts/admin',
-                error: 'AdsController not found',
-                instructions: [
-                    'Create file: src/controllers/adsController.js',
-                    'Create file: src/utils/adsValidator.js', 
-                    'Create file: src/utils/adsMigration.js',
-                    'Restart the server'
-                ]
+                user: req.user,
+                ads: [],
+                pagination: {
+                    page: 1,
+                    limit: 20,
+                    total: 0,
+                    totalPages: 0,
+                    hasNext: false,
+                    hasPrev: false
+                },
+                filters: {
+                    status: null,
+                    slot: null,
+                    type: null
+                },
+                error_msg: 'AdController not found. Please check system setup.'
             });
         }
         
-        // If view doesn't exist, show fallback
-        if (!adsViewExists) {
-            return res.render('admin/ads-fallback', {
-                title: 'Ads Management - View Missing',
+        // Forward to ads controller if available
+        if (AdsController && typeof AdsController.getAdminList === 'function') {
+            return AdsController.getAdminList(req, res);
+        } else {
+            // Fallback render
+            return res.render('admin/ads', {
+                title: 'Manage Advertisements',
+                ads: [],
+                pagination: {
+                    page: 1,
+                    limit: 20,
+                    total: 0,
+                    totalPages: 0,
+                    hasNext: false,
+                    hasPrev: false
+                },
+                filters: {
+                    status: null,
+                    slot: null,
+                    type: null
+                },
                 layout: 'layouts/admin',
-                error: 'Ads view template not found',
-                instructions: [
-                    'Create file: views/admin/ads.ejs',
-                    'Copy the enhanced ads management template',
-                    'Refresh this page'
-                ]
+                user: req.user
             });
         }
-        
-        // Render the ads management page
-        res.render('admin/ads', {
-            title: 'Google Ads & Analytics Management',
-            layout: 'layouts/admin'
-        });
         
     } catch (error) {
-        console.error('❌ Error rendering ads page:', error);
+        console.error('❌ Error in ads route:', error);
         
-        // Fallback error page
-        res.status(500).render('admin/ads-fallback', {
-            title: 'Ads Management - Error',
+        res.render('admin/ads', {
+            title: 'Manage Advertisements',
+            ads: [],
+            pagination: {
+                page: 1,
+                limit: 20,
+                total: 0,
+                totalPages: 0,
+                hasNext: false,
+                hasPrev: false
+            },
+            filters: {
+                status: null,
+                slot: null,
+                type: null
+            },
             layout: 'layouts/admin',
-            error: error.message,
-            instructions: [
-                'Check server console for detailed error',
-                'Ensure all required files exist',
-                'Try restarting the server',
-                'Contact administrator if issue persists'
-            ]
+            user: req.user,
+            error_msg: 'Failed to load ads data.'
         });
     }
 });
@@ -211,7 +242,8 @@ router.get('/ads', (req, res) => {
 router.get('/settings', (req, res) => {
     res.render('admin/settings', {
         title: 'Platform Settings',
-        layout: 'layouts/admin'
+        layout: 'layouts/admin',
+        user: req.user
     });
 });
 

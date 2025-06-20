@@ -736,6 +736,37 @@ static async delete(id) {
         }
     }
 
+static async recordView(viewData) {
+    try {
+        const sql = `
+            INSERT INTO video_views (
+                video_id, user_id, watch_duration, source, 
+                ip_address, user_agent, viewed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const values = [
+            viewData.video_id,
+            viewData.user_id,
+            viewData.watch_duration,
+            viewData.source,
+            viewData.ip_address,
+            viewData.user_agent,
+            viewData.viewed_at
+        ];
+        
+        const result = await query(sql, values);
+        return result.insertId;
+    } catch (error) {
+        // If video_views table doesn't exist, just log and continue
+        if (error.message.includes("doesn't exist")) {
+            console.warn('⚠️ video_views table not found, skipping detailed view tracking');
+            return null;
+        }
+        throw error;
+    }
+}
+
 // Increment views (FIXED to handle missing tables)
 static async incrementViews(videoId, userId = null, ipAddress = null, userAgent = null, watchDuration = 0) {
     try {
