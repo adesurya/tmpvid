@@ -219,8 +219,6 @@ class VideoController {
             
             // Extract data with safe defaults
             const watchDuration = requestBody.watchDuration || 0;
-            const source = requestBody.source || 'web';
-            const timestamp = requestBody.timestamp || new Date().toISOString();
             
             // Get user info safely
             const userId = req.user?.id || null;
@@ -234,9 +232,8 @@ class VideoController {
             console.log(`📊 Recording view for video ${id}:`, {
                 userId,
                 watchDuration,
-                source,
                 ipAddress,
-                userAgent: userAgent.substring(0, 100) + '...' // Truncate for logging
+                userAgent: userAgent.substring(0, 100) + '...'
             });
             
             // Validate video exists
@@ -248,26 +245,21 @@ class VideoController {
                 });
             }
             
-            // Record the view
-            const viewData = {
-                video_id: parseInt(id),
-                user_id: userId,
-                watch_duration: parseInt(watchDuration) || 0,
-                source: source,
-                ip_address: ipAddress,
-                user_agent: userAgent,
-                viewed_at: new Date()
-            };
-            
-            // Try to record view in database
+            // Record the view using the new method
             try {
-                const viewId = await Video.recordView(viewData);
+                const viewId = await Video.recordViewSimple(
+                    parseInt(id),
+                    userId,
+                    ipAddress,
+                    userAgent,
+                    parseInt(watchDuration) || 0
+                );
                 
                 if (viewId) {
                     console.log(`✅ View recorded successfully with ID: ${viewId}`);
                     
                     // Update video view count
-                    await Video.incrementViewCount(parseInt(id));
+                    await VideoController.incrementViewCount(parseInt(id));
                     
                     res.json({
                         success: true,
@@ -275,32 +267,55 @@ class VideoController {
                         data: {
                             view_id: viewId,
                             video_id: parseInt(id),
-                            total_views: video.views_count + 1
+                            total_views: (video.views_count || 0) + 1
                         }
                     });
                 } else {
                     console.warn(`⚠️ View recording returned no ID for video ${id}`);
+                    
+                    // Still try to increment view count
+                    await VideoController.incrementViewCount(parseInt(id));
+                    
                     res.json({
                         success: true,
                         message: 'View recorded',
                         data: {
                             video_id: parseInt(id),
-                            total_views: video.views_count + 1
+                            total_views: (video.views_count || 0) + 1
                         }
                     });
                 }
             } catch (dbError) {
                 console.error('❌ Database error recording view:', dbError);
                 
-                // Still return success to not break user experience
-                res.json({
-                    success: true,
-                    message: 'View recorded (cache)',
-                    data: {
-                        video_id: parseInt(id),
-                        total_views: video.views_count
-                    }
-                });
+                // Fallback: try to at least increment the view count
+                try {
+                    await VideoController.incrementViewCount(parseInt(id));
+                    console.log(`📈 Fallback: View count incremented for video ${id}`);
+                    
+                    res.json({
+                        success: true,
+                        message: 'View recorded (fallback)',
+                        data: {
+                            video_id: parseInt(id),
+                            total_views: (video.views_count || 0) + 1,
+                            note: 'Detailed tracking failed, but view count updated'
+                        }
+                    });
+                } catch (fallbackError) {
+                    console.error('❌ Fallback view recording also failed:', fallbackError);
+                    
+                    // Still return success to not break user experience
+                    res.json({
+                        success: true,
+                        message: 'View acknowledged',
+                        data: {
+                            video_id: parseInt(id),
+                            total_views: video.views_count || 0,
+                            note: 'View tracking temporarily unavailable'
+                        }
+                    });
+                }
             }
             
         } catch (error) {
@@ -315,11 +330,13 @@ class VideoController {
         }
     }
 
+
     // FIXED: Add this helper method to the Video model or controller
     static async incrementViewCount(videoId) {
         try {
+            const { query } = require('../config/database');
             const sql = 'UPDATE videos SET views_count = views_count + 1 WHERE id = ?';
-            await query(sql, [videoId]);
+            const result = await query(sql, [videoId]);
             console.log(`📈 View count incremented for video ${videoId}`);
             return true;
         } catch (error) {

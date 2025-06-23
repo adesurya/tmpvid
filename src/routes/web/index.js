@@ -4,7 +4,7 @@ const VideoController = require('../../controllers/videoController');
 
 // Debug middleware
 router.use((req, res, next) => {
-    console.log(`Web Route: ${req.method} ${req.path}`);
+    console.log(`[WEB] ${req.method} ${req.path}`);
     next();
 });
 
@@ -26,7 +26,27 @@ router.get('/trending', VideoController.getTrending);
 // Category page
 router.get('/category/:slug', VideoController.getByCategory);
 
-// Admin routes
+// FIXED: Import and register ads routes for admin web interface
+let adsRoutes;
+let adsAvailable = false;
+
+try {
+    adsRoutes = require('../adRoutes');
+    adsAvailable = true;
+    console.log('✅ Ads routes loaded successfully in web router');
+} catch (error) {
+    console.warn('⚠️ Ads routes not available in web router:', error.message);
+    adsRoutes = null;
+    adsAvailable = false;
+}
+
+// Register ads routes for admin interface if available
+if (adsAvailable && adsRoutes) {
+    router.use('/', adsRoutes); // This will handle /admin/ads routes
+    console.log('✅ Ads web routes registered');
+}
+
+// Admin routes (must come after ads routes to avoid conflicts)
 router.use('/admin', require('./admin'));
 
 module.exports = router;

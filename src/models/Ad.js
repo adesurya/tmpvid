@@ -1,4 +1,4 @@
-// src/models/Ad.js - COMPLETE FIXED VERSION
+// src/models/Ad.js - FIXED Ad Model
 const { query, queryOne, transaction } = require('../database/connection');
 
 class Ad {
@@ -22,59 +22,24 @@ class Ad {
         this.updated_at = data.updated_at;
     }
 
-    // FIXED: Initialize table with proper structure
+    // Initialize tables (create if not exist)
     static async initializeTable() {
         try {
-            console.log('🔧 Initializing ads table...');
+            console.log('🔧 Initializing ads tables...');
             
-            // Check if table exists
-            const tableExists = await queryOne(`
+            // The tables already exist according to your DDL, so we just need to verify
+            const result = await queryOne(`
                 SELECT COUNT(*) as count 
                 FROM information_schema.tables 
                 WHERE table_schema = DATABASE() 
                 AND table_name = 'ads'
             `);
             
-            if (tableExists.count === 0) {
-                console.log('📋 Creating ads table...');
-                
-                await query(`
-                    CREATE TABLE ads (
-                        id INT NOT NULL AUTO_INCREMENT,
-                        title VARCHAR(255) NOT NULL,
-                        description TEXT,
-                        type ENUM('video','image','google_ads') NOT NULL,
-                        media_url VARCHAR(500) DEFAULT NULL COMMENT 'Media file URL for image/video ads, null for Google Ads',
-                        click_url VARCHAR(500) DEFAULT NULL COMMENT 'Destination URL when ad is clicked, optional for Google Ads',
-                        duration INT DEFAULT 0,
-                        slot_position INT NOT NULL,
-                        impressions_count INT DEFAULT 0,
-                        clicks_count INT DEFAULT 0,
-                        is_active TINYINT(1) DEFAULT 1,
-                        start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        end_date DATETIME DEFAULT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        open_new_tab TINYINT(1) DEFAULT 1,
-                        google_ads_script TEXT COMMENT 'Google Ads script content for google_ads type',
-                        PRIMARY KEY (id),
-                        KEY idx_ads_slot_position (slot_position),
-                        KEY idx_ads_is_active (is_active),
-                        KEY idx_ads_dates (start_date, end_date),
-                        KEY idx_ads_type (type),
-                        CONSTRAINT ads_chk_1 CHECK (slot_position BETWEEN 1 AND 5),
-                        CONSTRAINT ads_chk_counts CHECK (impressions_count >= 0 AND clicks_count >= 0),
-                        CONSTRAINT ads_chk_duration CHECK (duration >= 0 AND duration <= 3600),
-                        CONSTRAINT ads_chk_slot_position CHECK (slot_position BETWEEN 1 AND 5)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-                    COMMENT='Advertisement management table supporting image, video, and Google Ads'
-                `);
+            if (result.count === 0) {
+                throw new Error('Ads table does not exist. Please run the DDL script first.');
             }
             
-            // Create analytics tables if they don't exist
-            await this.initializeAnalyticsTables();
-            
-            console.log('✅ Ads table initialized successfully');
+            console.log('✅ Ads tables verified successfully');
             return true;
         } catch (error) {
             console.error('❌ Initialize ads table error:', error);
@@ -82,51 +47,7 @@ class Ad {
         }
     }
 
-    // Initialize analytics tables
-    static async initializeAnalyticsTables() {
-        try {
-            // Ad impressions table
-            await query(`
-                CREATE TABLE IF NOT EXISTS ad_impressions (
-                    id INT NOT NULL AUTO_INCREMENT,
-                    ad_id INT NOT NULL,
-                    user_id INT NULL,
-                    ip_address VARCHAR(45) NOT NULL,
-                    user_agent TEXT,
-                    video_index INT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (id),
-                    KEY idx_ad_impressions_ad_id (ad_id),
-                    KEY idx_ad_impressions_created_at (created_at),
-                    FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            `);
-            
-            // Ad clicks table
-            await query(`
-                CREATE TABLE IF NOT EXISTS ad_clicks (
-                    id INT NOT NULL AUTO_INCREMENT,
-                    ad_id INT NOT NULL,
-                    user_id INT NULL,
-                    ip_address VARCHAR(45) NOT NULL,
-                    user_agent TEXT,
-                    referrer VARCHAR(500),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (id),
-                    KEY idx_ad_clicks_ad_id (ad_id),
-                    KEY idx_ad_clicks_created_at (created_at),
-                    FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            `);
-            
-            console.log('✅ Analytics tables initialized');
-        } catch (error) {
-            console.error('❌ Initialize analytics tables error:', error);
-            throw error;
-        }
-    }
-
-    // FIXED: Create new ad
+    // Create new ad
     static async create(adData) {
         try {
             console.log('📝 Creating ad with data:', adData);
@@ -168,7 +89,7 @@ class Ad {
         }
     }
 
-    // FIXED: Find ad by ID
+    // Find ad by ID
     static async findById(id) {
         try {
             if (!id || isNaN(parseInt(id))) {
@@ -189,7 +110,7 @@ class Ad {
         }
     }
 
-    // FIXED: Update ad
+    // Update ad
     static async update(id, updateData) {
         try {
             if (!id || isNaN(parseInt(id))) {
@@ -245,7 +166,7 @@ class Ad {
         }
     }
 
-    // FIXED: Delete ad
+    // Delete ad
     static async delete(id) {
         try {
             if (!id || isNaN(parseInt(id))) {
@@ -263,7 +184,7 @@ class Ad {
         }
     }
 
-    // FIXED: Get all ads with pagination and filters
+    // Get all ads with pagination and filters
     static async getAll(options = {}) {
         try {
             const {
@@ -343,12 +264,12 @@ class Ad {
         }
     }
 
-    // FIXED: Get admin ads (alias for getAll)
+    // Get admin ads (alias for getAll)
     static async getAdminAds(options = {}) {
         return await this.getAll(options);
     }
 
-    // FIXED: Get ad by slot position
+    // Get ad by slot position
     static async getAdBySlot(slotPosition) {
         try {
             if (!slotPosition || isNaN(parseInt(slotPosition))) {
@@ -387,7 +308,7 @@ class Ad {
         }
     }
 
-    // FIXED: Record ad impression
+    // Record ad impression
     static async recordImpression(adId, userId = null, ipAddress = null, userAgent = null, videoIndex = null) {
         try {
             if (!adId || isNaN(parseInt(adId))) {
@@ -417,7 +338,7 @@ class Ad {
                             parseInt(adId), 
                             userId ? parseInt(userId) : null, 
                             ipAddress || '127.0.0.1', 
-                            userAgent ? userAgent.substring(0, 500) : 'Unknown', // Limit length
+                            userAgent ? userAgent.substring(0, 500) : 'Unknown',
                             videoIndex ? parseInt(videoIndex) : null
                         ]
                     );
@@ -454,7 +375,7 @@ class Ad {
         }
     }
 
-    // FIXED: Record ad click
+    // Record ad click
     static async recordClick(adId, userId = null, ipAddress = null, userAgent = null, referrer = null) {
         try {
             if (!adId || isNaN(parseInt(adId))) {
@@ -493,8 +414,8 @@ class Ad {
                             parseInt(adId), 
                             userId ? parseInt(userId) : null, 
                             ipAddress || '127.0.0.1', 
-                            userAgent ? userAgent.substring(0, 500) : 'Unknown', // Limit length
-                            referrer ? referrer.substring(0, 500) : '' // Limit length
+                            userAgent ? userAgent.substring(0, 500) : 'Unknown',
+                            referrer ? referrer.substring(0, 500) : ''
                         ]
                     );
                     
@@ -530,6 +451,7 @@ class Ad {
         }
     }
 
+    // Get ads by slots
     static async getAdsBySlots() {
         try {
             const sql = `
@@ -583,65 +505,7 @@ class Ad {
         }
     }
 
-    // FIXED: Enhanced error handling for database queries
-    static async safeQuery(sql, params = []) {
-        try {
-            return await query(sql, params);
-        } catch (error) {
-            console.error('❌ Database query error:', {
-                sql: sql.substring(0, 100) + '...',
-                params: params,
-                error: error.message
-            });
-            throw error;
-        }
-    }
-
-    static async safeQueryOne(sql, params = []) {
-        try {
-            return await queryOne(sql, params);
-        } catch (error) {
-            console.error('❌ Database queryOne error:', {
-                sql: sql.substring(0, 100) + '...',
-                params: params,
-                error: error.message
-            });
-            throw error;
-        }
-    }
-
-    static async healthCheck() {
-        try {
-            // Test basic database connection
-            const testQuery = 'SELECT COUNT(*) as count FROM ads LIMIT 1';
-            const result = await query(testQuery);
-            
-            if (result && result[0]) {
-                console.log('✅ Ad model health check passed');
-                return {
-                    healthy: true,
-                    message: 'Ad model is working correctly',
-                    total_ads: result[0].count
-                };
-            } else {
-                console.warn('⚠️ Ad model health check warning: no results');
-                return {
-                    healthy: false,
-                    message: 'Database query returned no results',
-                    total_ads: 0
-                };
-            }
-        } catch (error) {
-            console.error('❌ Ad model health check failed:', error);
-            return {
-                healthy: false,
-                message: `Health check failed: ${error.message}`,
-                error: error.message
-            };
-        }
-    }
-
-    // FIXED: Get dashboard summary
+    // Get dashboard summary
     static async getDashboardSummary() {
         try {
             const sql = `
@@ -693,7 +557,7 @@ class Ad {
         }
     }
 
-    // FIXED: Get performance summary
+    // Get performance summary
     static async getPerformanceSummary() {
         try {
             const sql = `
@@ -719,7 +583,7 @@ class Ad {
         }
     }
 
-    // FIXED: Toggle ad status
+    // Toggle ad status
     static async toggleStatus(id) {
         try {
             if (!id || isNaN(parseInt(id))) {
@@ -742,7 +606,7 @@ class Ad {
         }
     }
 
-    // FIXED: Get analytics
+    // Get analytics
     static async getAnalytics(adId, days = 30) {
         try {
             if (!adId || isNaN(parseInt(adId))) {
@@ -789,7 +653,7 @@ class Ad {
         }
     }
 
-    // FIXED: Validate Google Ads script
+    // Validate Google Ads script
     static validateGoogleAdsScript(script) {
         try {
             if (!script || typeof script !== 'string') {
@@ -831,7 +695,7 @@ class Ad {
         }
     }
 
-    // FIXED: Clone ad
+    // Clone ad
     static async cloneAd(adId, newTitle = null) {
         try {
             if (!adId || isNaN(parseInt(adId))) {
@@ -865,7 +729,7 @@ class Ad {
         }
     }
 
-    // FIXED: Get count
+    // Get count
     static async getCount() {
         try {
             const result = await queryOne('SELECT COUNT(*) as count FROM ads');
@@ -873,6 +737,38 @@ class Ad {
         } catch (error) {
             console.error('❌ Get count error:', error);
             return 0;
+        }
+    }
+
+    // Health check
+    static async healthCheck() {
+        try {
+            // Test basic database connection
+            const testQuery = 'SELECT COUNT(*) as count FROM ads LIMIT 1';
+            const result = await query(testQuery);
+            
+            if (result && result[0]) {
+                console.log('✅ Ad model health check passed');
+                return {
+                    healthy: true,
+                    message: 'Ad model is working correctly',
+                    total_ads: result[0].count
+                };
+            } else {
+                console.warn('⚠️ Ad model health check warning: no results');
+                return {
+                    healthy: false,
+                    message: 'Database query returned no results',
+                    total_ads: 0
+                };
+            }
+        } catch (error) {
+            console.error('❌ Ad model health check failed:', error);
+            return {
+                healthy: false,
+                message: `Health check failed: ${error.message}`,
+                error: error.message
+            };
         }
     }
 }

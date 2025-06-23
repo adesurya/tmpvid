@@ -1,4 +1,4 @@
-// src/routes/adRoutes.js - FIXED VERSION
+// src/routes/adRoutes.js - FIXED Main Ad Routes
 const express = require('express');
 const router = express.Router();
 
@@ -41,226 +41,10 @@ const checkAdController = (req, res, next) => {
     next();
 };
 
-// API Routes (Public)
+// === WEB ADMIN ROUTES ===
 
-// FIXED: Get ads for video feed
-router.get('/api/ads/feed', checkAdController, async (req, res) => {
-    try {
-        await AdController.getAdsForFeed(req, res);
-    } catch (error) {
-        console.error('❌ API ads feed error:', error);
-        res.status(500).json({
-            success: false,
-            showAd: false,
-            data: null,
-            message: 'Failed to get ads'
-        });
-    }
-});
-
-// FIXED: Record ad click
-router.post('/api/ads/:id/click', checkAdController, async (req, res) => {
-    try {
-        await AdController.recordClick(req, res);
-    } catch (error) {
-        console.error('❌ API record click error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to record click'
-        });
-    }
-});
-
-// Admin API Routes
-
-// FIXED: Get ads summary for dashboard
-router.get('/api/admin/ads/summary', checkAdController, async (req, res) => {
-    try {
-        await AdController.getAdsSummary(req, res);
-    } catch (error) {
-        console.error('❌ API ads summary error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to get ads summary',
-            data: {
-                total_ads: 0, active_ads: 0, inactive_ads: 0,
-                total_impressions: 0, total_clicks: 0, overall_ctr: 0
-            }
-        });
-    }
-});
-
-// FIXED: Get ad analytics
-router.get('/api/admin/ads/:id/analytics', checkAdController, async (req, res) => {
-    try {
-        await AdController.getAnalytics(req, res);
-    } catch (error) {
-        console.error('❌ API analytics error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to get analytics',
-            data: { impressions: [], clicks: [] }
-        });
-    }
-});
-
-// FIXED: Health check endpoint
-router.get('/api/admin/ads/health', checkAdController, async (req, res) => {
-    try {
-        await AdController.healthCheck(req, res);
-    } catch (error) {
-        console.error('❌ API health check error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Health check failed',
-            error: error.message
-        });
-    }
-});
-
-// FIXED: Migration endpoint (if needed)
-router.post('/api/admin/ads/migrate', async (req, res) => {
-    try {
-        if (!AdController) {
-            return res.status(503).json({
-                success: false,
-                message: 'Migration not available - AdController not loaded'
-            });
-        }
-        
-        // For now, just initialize the controller
-        const result = await AdController.initialize();
-        
-        res.json({
-            success: result,
-            message: result ? 'Migration completed successfully' : 'Migration failed'
-        });
-    } catch (error) {
-        console.error('❌ Migration error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Migration failed',
-            error: error.message
-        });
-    }
-});
-
-// FIXED: System status endpoint
-router.get('/api/admin/ads/status', async (req, res) => {
-    try {
-        const status = {
-            controller_loaded: !!AdController,
-            model_loaded: false,
-            views_exist: false,
-            upload_directory: false,
-            fully_configured: false
-        };
-        
-        // Check if Ad model can be loaded
-        try {
-            const Ad = require('../models/Ad');
-            status.model_loaded = !!Ad;
-        } catch (modelError) {
-            console.warn('Ad model not found:', modelError.message);
-        }
-        
-        // Check if views exist
-        const fs = require('fs');
-        const path = require('path');
-        try {
-            const viewsPath = path.join(__dirname, '../../views/admin');
-            status.views_exist = fs.existsSync(path.join(viewsPath, 'ads.ejs')) &&
-                                fs.existsSync(path.join(viewsPath, 'ads-create.ejs'));
-        } catch (viewError) {
-            console.warn('Views check failed:', viewError.message);
-        }
-        
-        // Check upload directory
-        try {
-            const uploadPath = path.join(__dirname, '../../public/uploads/ads');
-            await fs.promises.mkdir(uploadPath, { recursive: true });
-            await fs.promises.access(uploadPath, fs.constants.W_OK);
-            status.upload_directory = true;
-        } catch (uploadError) {
-            console.warn('Upload directory check failed:', uploadError.message);
-        }
-        
-        // Overall status
-        status.fully_configured = status.controller_loaded && 
-                                  status.model_loaded && 
-                                  status.views_exist && 
-                                  status.upload_directory;
-        
-        res.json({
-            success: true,
-            data: status,
-            message: status.fully_configured ? 'System ready' : 'System needs configuration'
-        });
-    } catch (error) {
-        console.error('❌ Status check error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Status check failed',
-            error: error.message
-        });
-    }
-});
-
-// Bulk operations
-router.post('/api/admin/ads/bulk/toggle', checkAdController, async (req, res) => {
-    try {
-        await AdController.bulkToggleStatus(req, res);
-    } catch (error) {
-        console.error('❌ Bulk toggle error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Bulk toggle failed'
-        });
-    }
-});
-
-router.post('/api/admin/ads/bulk/delete', checkAdController, async (req, res) => {
-    try {
-        await AdController.bulkDelete(req, res);
-    } catch (error) {
-        console.error('❌ Bulk delete error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Bulk delete failed'
-        });
-    }
-});
-
-// Export ads
-router.get('/api/admin/ads/export', checkAdController, async (req, res) => {
-    try {
-        await AdController.exportAds(req, res);
-    } catch (error) {
-        console.error('❌ Export error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Export failed'
-        });
-    }
-});
-
-// Clone ad
-router.post('/api/admin/ads/:id/clone', checkAdController, async (req, res) => {
-    try {
-        await AdController.cloneAd(req, res);
-    } catch (error) {
-        console.error('❌ Clone error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Clone failed'
-        });
-    }
-});
-
-// Web Admin Routes
-
-// FIXED: Show ads list
-router.get('/admin/ads', checkAdController, async (req, res) => {
+// Show ads list
+router.get('/', checkAdController, async (req, res) => {
     try {
         await AdController.getAdminList(req, res);
     } catch (error) {
@@ -273,8 +57,8 @@ router.get('/admin/ads', checkAdController, async (req, res) => {
     }
 });
 
-// FIXED: Show create form
-router.get('/admin/ads/create', checkAdController, async (req, res) => {
+// Show create form
+router.get('/create', checkAdController, async (req, res) => {
     try {
         await AdController.showCreateForm(req, res);
     } catch (error) {
@@ -287,8 +71,8 @@ router.get('/admin/ads/create', checkAdController, async (req, res) => {
     }
 });
 
-// FIXED: Create ad with proper middleware
-router.post('/admin/ads', checkAdController, (req, res, next) => {
+// Create ad with proper middleware
+router.post('/', checkAdController, (req, res, next) => {
     // Use the upload middleware from AdController
     if (AdController && typeof AdController.getUploadMiddleware === 'function') {
         AdController.getUploadMiddleware()(req, res, next);
@@ -322,8 +106,8 @@ router.post('/admin/ads', checkAdController, (req, res, next) => {
     }
 });
 
-// FIXED: Show edit form
-router.get('/admin/ads/:id/edit', checkAdController, async (req, res) => {
+// Show edit form
+router.get('/:id/edit', checkAdController, async (req, res) => {
     try {
         await AdController.showEditForm(req, res);
     } catch (error) {
@@ -337,8 +121,8 @@ router.get('/admin/ads/:id/edit', checkAdController, async (req, res) => {
     }
 });
 
-// FIXED: Update ad
-router.post('/admin/ads/:id', checkAdController, (req, res, next) => {
+// Update ad
+router.post('/:id', checkAdController, (req, res, next) => {
     // Use the upload middleware from AdController
     if (AdController && typeof AdController.getUploadMiddleware === 'function') {
         AdController.getUploadMiddleware()(req, res, next);
@@ -372,8 +156,8 @@ router.post('/admin/ads/:id', checkAdController, (req, res, next) => {
     }
 });
 
-// FIXED: Delete ad
-router.delete('/admin/ads/:id', checkAdController, async (req, res) => {
+// Delete ad
+router.delete('/:id', checkAdController, async (req, res) => {
     try {
         await AdController.delete(req, res);
     } catch (error) {
@@ -385,8 +169,8 @@ router.delete('/admin/ads/:id', checkAdController, async (req, res) => {
     }
 });
 
-// FIXED: Toggle ad status
-router.post('/admin/ads/:id/toggle', checkAdController, async (req, res) => {
+// Toggle ad status
+router.post('/:id/toggle', checkAdController, async (req, res) => {
     try {
         await AdController.toggleStatus(req, res);
     } catch (error) {
@@ -398,8 +182,8 @@ router.post('/admin/ads/:id/toggle', checkAdController, async (req, res) => {
     }
 });
 
-// FIXED: Preview ad
-router.get('/admin/ads/:id/preview', checkAdController, async (req, res) => {
+// Preview ad
+router.get('/:id/preview', checkAdController, async (req, res) => {
     try {
         const { id } = req.params;
         const adId = parseInt(id);
@@ -439,7 +223,7 @@ router.get('/admin/ads/:id/preview', checkAdController, async (req, res) => {
 });
 
 // Performance dashboard
-router.get('/admin/ads/performance', checkAdController, async (req, res) => {
+router.get('/performance', checkAdController, async (req, res) => {
     try {
         await AdController.getPerformanceDashboard(req, res);
     } catch (error) {

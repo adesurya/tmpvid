@@ -738,34 +738,72 @@ static async delete(id) {
 
 static async recordView(viewData) {
     try {
+        // FIXED: Map viewData to match actual database table structure
         const sql = `
             INSERT INTO video_views (
-                video_id, user_id, watch_duration, source, 
-                ip_address, user_agent, viewed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                video_id, user_id, watch_duration, 
+                ip_address, user_agent, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
         `;
         
+        // FIXED: Use only columns that exist in the table
         const values = [
             viewData.video_id,
-            viewData.user_id,
-            viewData.watch_duration,
-            viewData.source,
-            viewData.ip_address,
-            viewData.user_agent,
-            viewData.viewed_at
+            viewData.user_id || null,
+            parseInt(viewData.watch_duration) || 0,
+            viewData.ip_address || '127.0.0.1',
+            viewData.user_agent ? viewData.user_agent.substring(0, 1000) : 'Unknown', // Limit length for TEXT field
+            new Date() // Use current timestamp for created_at
         ];
         
+        console.log('📊 Recording view with SQL:', sql);
+        console.log('📊 Recording view with values:', values);
+        
         const result = await query(sql, values);
-        return result.insertId;
-    } catch (error) {
-        // If video_views table doesn't exist, just log and continue
-        if (error.message.includes("doesn't exist")) {
-            console.warn('⚠️ video_views table not found, skipping detailed view tracking');
+        
+        if (result && result.insertId) {
+            console.log(`✅ View recorded successfully with ID: ${result.insertId}`);
+            return result.insertId;
+        } else {
+            console.warn('⚠️ View insert returned no ID');
             return null;
         }
+    } catch (error) {
+        console.error('❌ Database error in recordView:', error);
         throw error;
     }
 }
+
+static async recordViewSimple(videoId, userId = null, ipAddress = null, userAgent = null, watchDuration = 0) {
+    try {
+        const { query } = require('../config/database'); // Pastikan import ini ada
+        
+        const sql = `
+            INSERT INTO video_views (
+                video_id, user_id, watch_duration, 
+                ip_address, user_agent
+            ) VALUES (?, ?, ?, ?, ?)
+        `;
+        
+        const values = [
+            parseInt(videoId),
+            userId ? parseInt(userId) : null,
+            parseInt(watchDuration) || 0,
+            ipAddress || '127.0.0.1',
+            userAgent ? userAgent.substring(0, 1000) : 'Unknown'
+        ];
+        
+        console.log('📊 Recording view with SQL:', sql);
+        console.log('📊 Recording view with values:', values);
+        
+        const result = await query(sql, values);
+        return result.insertId || null;
+    } catch (error) {
+        console.error('❌ Simple view recording failed:', error);
+        throw error;
+    }
+}
+
 
 // Increment views (FIXED to handle missing tables)
 static async incrementViews(videoId, userId = null, ipAddress = null, userAgent = null, watchDuration = 0) {

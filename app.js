@@ -11,7 +11,11 @@ const flash = require('connect-flash');
 const rateLimit = require('express-rate-limit');
 const ejsMate = require('ejs-mate');
 const { initDatabase } = require('./src/config/database');
-const adRoutes = require('./src/routes/adRoutes');
+
+// FIXED: Remove separate adRoutes import and registration
+// const adRoutes = require('./src/routes/adRoutes'); // REMOVED
+
+// Import main routes (which now include ads routes)
 const routes = require('./src/routes');
 
 // Import AdController with CORRECT name and error handling
@@ -19,14 +23,17 @@ let AdController;
 let adsAvailable = false;
 
 try {
-    AdController = require('./src/controllers/adController');
-    console.log('✅ AdController loaded successfully');
+    // Import ad routes
+    adRoutes = require('./src/routes/adRoutes');
     adsAvailable = true;
+    console.log('✅ Ad routes loaded successfully');
+    
+    // Initialize ad system
+    const AdController = require('./src/controllers/adController');
+    AdController.initialize().catch(console.error);
+    
 } catch (error) {
-    console.warn('⚠️ AdController not found, ads features will be disabled');
-    console.warn('   Make sure src/controllers/adController.js exists');
-    console.warn('   Error:', error.message);
-    AdController = null;
+    console.warn('⚠️ Ad system not available:', error.message);
     adsAvailable = false;
 }
 
@@ -34,28 +41,10 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const apiRoutes = require('./src/routes/api');
+app.use('/api', apiRoutes);
 
-// Import routes
-try {
-    // Import and register main routes
-    const routes = require('./src/routes');
-    app.use('/', routes);
-    
-    // FIXED: Register ads routes only if available
-    if (adsAvailable) {
-        try {
-            const adRoutes = require('./src/routes/adRoutes');
-            app.use('/', adRoutes);
-            console.log('✅ Ads routes registered successfully');
-        } catch (routeError) {
-            console.warn('⚠️ Failed to load ads routes:', routeError.message);
-            adsAvailable = false;
-        }
-    }
-} catch (error) {
-    console.error('❌ Failed to register routes:', error);
-}
-
+// FIXED: Initialize database and ads system
 initDatabase().then(() => {
     console.log('✅ Database initialization complete');
     
@@ -135,7 +124,7 @@ app.use(morgan('combined'));
 app.use(cors());
 app.use(cookieParser());
 
-// FIXED: Enhanced JSON and URL encoding with error handling
+// Enhanced JSON and URL encoding with error handling
 app.use(express.json({ 
     limit: '50mb',
     type: ['application/json', 'text/plain'],
@@ -149,8 +138,6 @@ app.use(express.json({
         }
     }
 }));
-// app.use(express.json({ limit: '50mb' }));
-// app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(express.urlencoded({ 
     extended: true, 
@@ -166,7 +153,6 @@ app.use(express.urlencoded({
         }
     }
 }));
-
 
 // Session configuration
 app.use(session({
@@ -300,9 +286,8 @@ app.use((req, res, next) => {
     next();
 });
 
-// Routes - FIXED: Register ads routes FIRST to ensure they're available
-app.use('/', adRoutes);  // Register ads routes first
-app.use('/', routes);    // Then register other routes
+// FIXED: Register routes through the main router system (which now includes ads)
+app.use('/', routes);
 
 // DEVELOPMENT: Add debug endpoint to check routes
 if (process.env.NODE_ENV !== 'production') {
@@ -389,6 +374,37 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
+// Helper function for health recommendations
+function getHealthRecommendations(healthStatus) {
+    const recommendations = [];
+    
+    if (!healthStatus.controller_loaded) {
+        recommendations.push('Check if src/controllers/adController.js exists and is properly configured');
+    }
+    
+    if (!healthStatus.model_available) {
+        recommendations.push('Check if src/models/Ad.js exists and can be loaded');
+    }
+    
+    if (!healthStatus.database_connected) {
+        recommendations.push('Verify database connection configuration');
+    }
+    
+    if (!healthStatus.tables_exist) {
+        recommendations.push('Run database migration to create ads tables');
+    }
+    
+    if (!healthStatus.sample_data) {
+        recommendations.push('Consider adding sample ads for testing');
+    }
+    
+    if (recommendations.length === 0) {
+        recommendations.push('Ads system is working correctly');
+    }
+    
+    return recommendations;
+}
+
 // Error handling middleware
 app.use((error, req, res, next) => {
     console.error('Application Error:', error);
@@ -453,26 +469,29 @@ app.use((error, req, res, next) => {
 // ENHANCED 404 handler with ads endpoints listed
 app.use((req, res) => {
     if (req.originalUrl.startsWith('/api/')) {
+        const availableEndpoints = [
+            'GET /api/health',
+            'GET /api/public/feed',
+            'GET /api/public/rss',
+            'GET /api/videos/feed',
+            'GET /api/categories',
+            'POST /api/videos/:id/like',
+            'POST /api/videos/:id/share',
+            'POST /api/videos/:id/view'
+        ];
+
+        // Add ads endpoints if available
+        if (adsAvailable) {
+            app.use('/admin/ads', adRoutes);
+            console.log('✅ Ad routes registered at /admin/ads');
+        }
+
         return res.status(404).json({
             success: false,
             message: 'API endpoint not found',
             path: req.originalUrl,
-            availableEndpoints: [
-                'GET /api/health',
-                'GET /api/public/feed',
-                'GET /api/public/rss',
-                'GET /api/videos/feed',
-                'GET /api/categories',
-                'POST /api/videos/:id/like',
-                'POST /api/videos/:id/share',
-                'POST /api/videos/:id/view',
-                // Ads API endpoints
-                'GET /api/ads/feed',
-                'POST /api/ads/:id/click',
-                'GET /api/admin/ads/health',
-                'GET /api/admin/ads/status',
-                'POST /api/admin/ads/migrate'
-            ]
+            ads_system_available: adsAvailable,
+            availableEndpoints: availableEndpoints
         });
     }
     
@@ -527,9 +546,10 @@ app.listen(PORT, () => {
     console.log(`🔍 Debug routes: http://localhost:${PORT}/debug/routes`);
     
     // Verify ads endpoints
-    if (AdController) {
+    if (adsAvailable) {
         console.log(`✅ Ads API ready: http://localhost:${PORT}/api/ads/feed`);
-        console.log(`✅ Ads health check: http://localhost:${PORT}/api/admin/ads/health`);
+        console.log(`✅ Ads health check: http://localhost:${PORT}/api/ads/health`);
+        console.log(`✅ Ads admin: http://localhost:${PORT}/admin/ads`);
     } else {
         console.log(`⚠️  Ads system disabled - controller not found`);
     }
