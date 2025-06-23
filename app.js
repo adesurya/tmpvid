@@ -1,4 +1,4 @@
-// app.js - Server-side only (FIXED VERSION)
+// app.js - FIXED Complete Version
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -10,54 +10,49 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const rateLimit = require('express-rate-limit');
 const ejsMate = require('ejs-mate');
-const { initDatabase } = require('./src/config/database');
-
-// FIXED: Remove separate adRoutes import and registration
-// const adRoutes = require('./src/routes/adRoutes'); // REMOVED
-
-// Import main routes (which now include ads routes)
-const routes = require('./src/routes');
-
-// Import AdController with CORRECT name and error handling
-let AdController;
-let adsAvailable = false;
-
-try {
-    // Import ad routes
-    adRoutes = require('./src/routes/adRoutes');
-    adsAvailable = true;
-    console.log('✅ Ad routes loaded successfully');
-    
-    // Initialize ad system
-    const AdController = require('./src/controllers/adController');
-    AdController.initialize().catch(console.error);
-    
-} catch (error) {
-    console.warn('⚠️ Ad system not available:', error.message);
-    adsAvailable = false;
-}
 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const apiRoutes = require('./src/routes/api');
-app.use('/api', apiRoutes);
 
-// FIXED: Initialize database and ads system
-initDatabase().then(() => {
-    console.log('✅ Database initialization complete');
+// FIXED: Import database initialization
+let initDatabase;
+try {
+    const dbConfig = require('./src/config/database');
+    initDatabase = dbConfig.initDatabase;
+} catch (error) {
+    console.warn('⚠️ Database config not found, using fallback');
+    initDatabase = async () => {
+        console.log('✅ Database initialization skipped (no config)');
+    };
+}
+
+// FIXED: Import routes and ads system with proper error handling
+const routes = require('./src/routes');
+const apiRoutes = require('./src/routes/api');
+
+// Import Ad system with error handling
+let AdController;
+let adRoutes;
+let adsAvailable = false;
+
+try {
+    // Import AdController first
+    AdController = require('./src/controllers/adController');
+    console.log('✅ AdController loaded successfully');
     
-    // Initialize ads table after database is ready
-    if (AdController && typeof AdController.initialize === 'function') {
-        AdController.initialize().catch(error => {
-            console.error('❌ Failed to initialize ads system:', error);
-        });
-    }
-}).catch(error => {
-    console.error('❌ Database initialization failed:', error);
-    // Don't exit the process, continue without database
-});
+    // Then import ad routes
+    adRoutes = require('./src/routes/adRoutes');
+    console.log('✅ Ad routes loaded successfully');
+    
+    adsAvailable = true;
+} catch (error) {
+    console.warn('⚠️ Ad system not available:', error.message);
+    AdController = null;
+    adRoutes = null;
+    adsAvailable = false;
+}
 
 // Security middleware - FIXED CSP settings to allow inline event handlers and ads
 app.use(helmet({
@@ -176,6 +171,33 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// FIXED: Initialize database and ads system properly
+async function initializeApp() {
+    try {
+        // Initialize database first
+        await initDatabase();
+        console.log('✅ Database initialization complete');
+        
+        // Initialize ads table after database is ready
+        if (adsAvailable && AdController && typeof AdController.initialize === 'function') {
+            try {
+                await AdController.initialize();
+                console.log('✅ Ads system initialized successfully');
+            } catch (adError) {
+                console.error('❌ Failed to initialize ads system:', adError);
+                // Don't fail the entire app, just disable ads
+                adsAvailable = false;
+            }
+        }
+    } catch (error) {
+        console.error('❌ Database initialization failed:', error);
+        // Don't exit the process, continue without database
+    }
+}
+
+// Initialize the app
+initializeApp();
+
 // FIXED: Global middleware to inject ads into responses
 app.use(async (req, res, next) => {
     // Store original render function
@@ -286,25 +308,140 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: Register routes through the main router system (which now includes ads)
+// FIXED: Register API routes
+app.use('/api', apiRoutes);
+
+// FIXED: Register ad routes if available
+if (adsAvailable && adRoutes) {
+    app.use('/admin/ads', adRoutes);
+    console.log('✅ Ad routes registered at /admin/ads');
+}
+
+// FIXED: Register main routes
 app.use('/', routes);
+
+// === MIDDLEWARE FOR AD INJECTION ===
+// Middleware to inject ad data into all admin pages
+app.use('/admin/*', async (req, res, next) => {
+    if (adsAvailable && AdController) {
+        try {
+            const Ad = require('./src/models/Ad');
+            if (Ad && typeof Ad.getDashboardSummary === 'function') {
+                const adsSummary = await Ad.getDashboardSummary();
+                res.locals.adsSummary = adsSummary;
+                res.locals.adsEnabled = true;
+            } else {
+                res.locals.adsEnabled = false;
+            }
+        } catch (error) {
+            console.warn('Failed to load ads summary for admin:', error);
+            res.locals.adsEnabled = false;
+        }
+    } else {
+        res.locals.adsEnabled = false;
+    }
+    next();
+});
+
+// FIXED: Fallback route for ads when system not available
+app.get('/admin/ads*', (req, res) => {
+    if (!adsAvailable) {
+        return res.status(503).render('admin/ads-fallback', {
+            title: 'Advertisement System',
+            error: 'Advertisement system is not available',
+            instructions: [
+                'Ensure src/controllers/adController.js exists',
+                'Verify src/models/Ad.js is properly configured', 
+                'Check database connection and tables',
+                'Restart the application server'
+            ],
+            layout: 'layouts/admin'
+        });
+    }
+    
+    res.status(404).render('error', {
+        title: 'Page Not Found',
+        message: 'The requested page was not found',
+        layout: 'layouts/admin'
+    });
+});
+
+// === FRONTEND INTEGRATION ===
+// Add ad data to video feed pages
+app.get('/videos', async (req, res) => {
+    try {
+        // Your existing video loading logic
+        let videos = [];
+        try {
+            // Replace this with your actual video loading function
+            // videos = await getVideos(); // Your existing function
+            videos = []; // Placeholder
+        } catch (videoError) {
+            console.warn('Failed to load videos:', videoError);
+        }
+        
+        // Add ads data if available
+        let adsBySlots = {};
+        if (adsAvailable && AdController) {
+            try {
+                const Ad = require('./src/models/Ad');
+                if (Ad && typeof Ad.getAdsBySlots === 'function') {
+                    adsBySlots = await Ad.getAdsBySlots();
+                }
+            } catch (adError) {
+                console.warn('Failed to load ads for video page:', adError);
+            }
+        }
+        
+        res.render('videos/index', {
+            title: 'Videos',
+            videos: videos,
+            ads: adsBySlots,
+            adsEnabled: adsAvailable
+        });
+    } catch (error) {
+        console.error('Error loading videos page:', error);
+        res.status(500).render('error', {
+            title: 'Error',
+            message: 'Failed to load videos'
+        });
+    }
+});
+
+// === STATUS ENDPOINT ===
+// Add system status endpoint
+app.get('/system/status', (req, res) => {
+    res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        system: {
+            ads_system: adsAvailable,
+            environment: process.env.NODE_ENV || 'development'
+        },
+        features: {
+            ad_serving: adsAvailable,
+            ad_management: adsAvailable,
+            ad_analytics: adsAvailable
+        }
+    });
+});
 
 // DEVELOPMENT: Add debug endpoint to check routes
 if (process.env.NODE_ENV !== 'production') {
     app.get('/debug/routes', (req, res) => {
-        const routes = [];
+        const routesList = [];
         
         // Get all registered routes
         app._router.stack.forEach(function(middleware) {
             if (middleware.route) {
-                routes.push({
+                routesList.push({
                     path: middleware.route.path,
                     methods: Object.keys(middleware.route.methods)
                 });
             } else if (middleware.name === 'router') {
                 middleware.handle.stack.forEach(function(handler) {
                     if (handler.route) {
-                        routes.push({
+                        routesList.push({
                             path: handler.route.path,
                             methods: Object.keys(handler.route.methods)
                         });
@@ -316,8 +453,8 @@ if (process.env.NODE_ENV !== 'production') {
         // FIXED: Include ads system status
         res.json({
             success: true,
-            total_routes: routes.length,
-            routes: routes,
+            total_routes: routesList.length,
+            routes: routesList,
             ads_system: {
                 available: adsAvailable,
                 controller_loaded: !!AdController,
@@ -346,7 +483,7 @@ if (process.env.NODE_ENV !== 'production') {
                     healthStatus.model_available = !!Ad;
                     
                     // Check database connection and table
-                    if (Ad) {
+                    if (Ad && typeof Ad.getCount === 'function') {
                         try {
                             const count = await Ad.getCount();
                             healthStatus.database_connected = true;
@@ -460,7 +597,7 @@ app.use((error, req, res, next) => {
     // Redirect for non-API requests
     if (req.flash) {
         req.flash('error_msg', 'An error occurred. Please try again.');
-        res.redirect(req.get('Referer') || '/admin');
+        res.redirect(req.get('Referer') || '/');
     } else {
         res.status(500).send('Internal server error');
     }
@@ -482,8 +619,13 @@ app.use((req, res) => {
 
         // Add ads endpoints if available
         if (adsAvailable) {
-            app.use('/admin/ads', adRoutes);
-            console.log('✅ Ad routes registered at /admin/ads');
+            availableEndpoints.push(
+                'GET /api/ads/feed',
+                'POST /api/ads/:id/click',
+                'GET /api/admin/ads/health',
+                'GET /api/admin/ads/status',
+                'POST /api/admin/ads/migrate'
+            );
         }
 
         return res.status(404).json({
@@ -539,20 +681,19 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📱 Access the app at: http://localhost:${PORT}`);
     console.log(`🔧 Admin dashboard: http://localhost:${PORT}/admin`);
-    console.log(`🎯 Ads management: http://localhost:${PORT}/admin/ads`);
-    console.log(`📡 Public API: http://localhost:${PORT}/api/public`);
-    console.log(`🔗 RSS Feed: http://localhost:${PORT}/api/public/rss`);
-    console.log(`📖 API Docs: http://localhost:${PORT}/api/public/docs`);
-    console.log(`🔍 Debug routes: http://localhost:${PORT}/debug/routes`);
     
-    // Verify ads endpoints
     if (adsAvailable) {
+        console.log(`✅ Ads management: http://localhost:${PORT}/admin/ads`);
         console.log(`✅ Ads API ready: http://localhost:${PORT}/api/ads/feed`);
         console.log(`✅ Ads health check: http://localhost:${PORT}/api/ads/health`);
-        console.log(`✅ Ads admin: http://localhost:${PORT}/admin/ads`);
     } else {
         console.log(`⚠️  Ads system disabled - controller not found`);
     }
+    
+    console.log(`📡 Public API: http://localhost:${PORT}/api/public`);
+    console.log(`🔗 RSS Feed: http://localhost:${PORT}/api/public/rss`);
+    console.log(`🔍 Debug routes: http://localhost:${PORT}/debug/routes`);
+    console.log(`🔍 Debug ads health: http://localhost:${PORT}/debug/ads-health`);
 });
 
 module.exports = app;
