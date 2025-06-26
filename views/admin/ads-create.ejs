@@ -5,25 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create New Advertisement - Admin Dashboard</title>
     
-    <!-- Include your existing admin CSS -->
-    <link rel="stylesheet" href="/css/admin.css">
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
         * {
             box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
             margin: 0;
             padding: 0;
         }
 
-        .container-fluid {
-            max-width: 800px;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -39,7 +38,6 @@
         }
 
         .page-header h1 {
-            margin: 0;
             color: #2c3e50;
             font-size: 28px;
             font-weight: 700;
@@ -61,27 +59,23 @@
             text-decoration: none;
         }
 
-        .breadcrumb a:hover {
-            text-decoration: underline;
-        }
-
-        /* Form Styles */
+        /* Form Card */
         .form-card {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-            overflow: hidden;
             border: 1px solid #e9ecef;
+            margin-bottom: 20px;
         }
 
         .form-header {
             background: #f8f9fa;
             padding: 20px 24px;
             border-bottom: 1px solid #e9ecef;
+            border-radius: 12px 12px 0 0;
         }
 
         .form-header h3 {
-            margin: 0;
             color: #2c3e50;
             font-size: 18px;
             font-weight: 600;
@@ -94,46 +88,50 @@
             padding: 24px;
         }
 
+        /* Form Groups */
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             font-weight: 600;
             color: #2c3e50;
             font-size: 14px;
         }
 
-        .form-group .required {
+        .required {
             color: #dc3545;
         }
 
         .form-control {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: all 0.3s ease;
             background: white;
         }
 
         .form-control:focus {
             outline: none;
             border-color: #007bff;
-            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
         }
 
-        .form-control:disabled {
-            background: #f8f9fa;
-            color: #6c757d;
+        .form-control.error {
+            border-color: #dc3545;
+        }
+
+        .form-control.success {
+            border-color: #28a745;
         }
 
         textarea.form-control {
             resize: vertical;
-            min-height: 80px;
+            min-height: 100px;
         }
 
         .form-help {
@@ -142,36 +140,91 @@
             margin-top: 4px;
         }
 
+        .form-error {
+            font-size: 12px;
+            color: #dc3545;
+            margin-top: 4px;
+            display: none;
+        }
+
+        /* Type Selection Cards */
+        .type-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .type-card {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .type-card:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+        }
+
+        .type-card.selected {
+            border-color: #007bff;
+            background: #f8f9ff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+        }
+
+        .type-card i {
+            font-size: 32px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .type-card h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .type-card p {
+            margin: 0;
+            font-size: 13px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
         /* File Upload */
         .file-upload-area {
-            border: 2px dashed #ced4da;
-            border-radius: 8px;
-            padding: 40px;
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 48px 24px;
             text-align: center;
             background: #f8f9fa;
             transition: all 0.3s ease;
             cursor: pointer;
         }
 
-        .file-upload-area:hover {
-            border-color: #007bff;
-            background: #e3f2fd;
-        }
-
+        .file-upload-area:hover,
         .file-upload-area.dragover {
             border-color: #007bff;
-            background: #e3f2fd;
+            background: #f0f8ff;
+            transform: scale(1.02);
         }
 
         .file-upload-icon {
             font-size: 48px;
-            color: #ced4da;
+            color: #cbd5e0;
             margin-bottom: 16px;
         }
 
         .file-upload-text {
-            color: #6c757d;
+            color: #4a5568;
             margin-bottom: 8px;
+            font-weight: 500;
         }
 
         .file-upload-hint {
@@ -180,8 +233,9 @@
         }
 
         .file-preview {
-            margin-top: 16px;
+            margin-top: 20px;
             display: none;
+            text-align: center;
         }
 
         .file-preview img,
@@ -189,85 +243,64 @@
             max-width: 100%;
             max-height: 200px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .file-info {
             background: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 12px;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
             font-size: 14px;
             color: #495057;
+            text-align: left;
         }
 
         /* Google Ads Section */
         .google-ads-section {
             display: none;
-            background: #fff3e0;
-            border: 1px solid #ffcc02;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 16px;
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 20px;
         }
 
         .google-ads-header {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 16px;
-            color: #f57c00;
+            margin-bottom: 20px;
+            color: #e65100;
             font-weight: 600;
         }
 
-        .google-ads-header i {
-            font-size: 24px;
-        }
-
         .script-textarea {
-            font-family: 'Courier New', monospace;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.5;
             background: white;
-            border: 1px solid #ffcc02;
-            min-height: 120px;
-        }
-
-        .script-validation {
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            display: none;
-        }
-
-        .script-validation.valid {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-
-        .script-validation.invalid {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
+            border: 2px solid #ff9800;
+            min-height: 150px;
+            border-radius: 8px;
         }
 
         /* Advanced Options */
         .advanced-options {
             background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
         }
 
         .advanced-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             cursor: pointer;
+            user-select: none;
         }
 
         .advanced-header h4 {
@@ -293,7 +326,7 @@
             gap: 20px;
         }
 
-        /* Checkbox and Radio */
+        /* Checkbox */
         .form-check {
             display: flex;
             align-items: center;
@@ -301,48 +334,63 @@
             margin-bottom: 12px;
         }
 
-        .form-check input {
-            margin: 0;
+        .form-check input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #007bff;
         }
 
         .form-check label {
             margin: 0;
             font-weight: 500;
+            cursor: pointer;
         }
 
         /* Buttons */
         .btn {
             padding: 12px 24px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
             font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
+            font-weight: 600;
+            transition: all 0.3s ease;
             text-align: center;
         }
 
         .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        .btn-primary { background: #007bff; color: white; }
-        .btn-primary:hover { background: #0056b3; }
-
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-secondary:hover { background: #545b62; }
-
-        .btn-success { background: #28a745; color: white; }
-        .btn-success:hover { background: #1e7e34; }
+        .btn-primary { 
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white; 
+        }
+        
+        .btn-secondary { 
+            background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+            color: white; 
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white; 
+        }
 
         .btn-lg {
             padding: 16px 32px;
             font-size: 16px;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .form-actions {
@@ -351,53 +399,7 @@
             justify-content: flex-end;
             margin-top: 32px;
             padding-top: 24px;
-            border-top: 1px solid #e9ecef;
-        }
-
-        /* Type Selection */
-        .type-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-top: 12px;
-        }
-
-        .type-card {
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: white;
-        }
-
-        .type-card:hover {
-            border-color: #007bff;
-            background: #f8f9fa;
-        }
-
-        .type-card.selected {
-            border-color: #007bff;
-            background: #e3f2fd;
-        }
-
-        .type-card i {
-            font-size: 32px;
-            margin-bottom: 12px;
-            display: block;
-        }
-
-        .type-card h4 {
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .type-card p {
-            margin: 0;
-            font-size: 13px;
-            color: #6c757d;
+            border-top: 2px solid #e9ecef;
         }
 
         /* Notifications */
@@ -414,30 +416,8 @@
             gap: 12px;
             font-weight: 500;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            animation: slideInRight 0.3s ease;
             max-width: 400px;
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
+            min-width: 300px;
         }
 
         .notification-success { background: #28a745; }
@@ -445,16 +425,15 @@
         .notification-warning { background: #ffc107; color: #212529; }
         .notification-info { background: #17a2b8; }
 
+        /* Hidden sections */
+        .hidden-section {
+            display: none;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
-            .container-fluid {
+            .container {
                 padding: 16px;
-            }
-
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
             }
 
             .type-cards {
@@ -466,19 +445,14 @@
             }
 
             .form-actions {
-                justify-content: stretch;
-            }
-
-            .form-actions .btn {
-                flex: 1;
-                justify-content: center;
+                flex-direction: column;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="container-fluid">
+    <div class="container">
         <!-- Page Header -->
         <div class="page-header">
             <div>
@@ -518,6 +492,7 @@
                                placeholder="Enter a descriptive title for your ad"
                                required>
                         <div class="form-help">This title is for internal reference only</div>
+                        <div class="form-error" id="title-error"></div>
                     </div>
 
                     <div class="form-group">
@@ -525,7 +500,8 @@
                         <textarea id="description" 
                                   name="description" 
                                   class="form-control" 
-                                  placeholder="Optional description or notes about this advertisement"></textarea>
+                                  placeholder="Add notes about this advertisement for your reference"></textarea>
+                        <div class="form-help">Optional description or notes about this advertisement</div>
                     </div>
 
                     <!-- Ad Type Selection -->
@@ -535,36 +511,37 @@
                             <div class="type-card" data-type="image">
                                 <i class="fas fa-image" style="color: #28a745;"></i>
                                 <h4>Image Ad</h4>
-                                <p>Static image advertisement with click URL</p>
+                                <p>Upload an image with click destination URL</p>
                             </div>
                             <div class="type-card" data-type="video">
                                 <i class="fas fa-video" style="color: #007bff;"></i>
                                 <h4>Video Ad</h4>
-                                <p>Video advertisement with duration control</p>
+                                <p>Upload video with duration control</p>
                             </div>
                             <div class="type-card" data-type="google_ads">
                                 <i class="fab fa-google" style="color: #f57c00;"></i>
                                 <h4>Google Ads</h4>
-                                <p>Google AdSense or Google Ads script</p>
+                                <p>Embed Google AdSense script</p>
                             </div>
                         </div>
                         <input type="hidden" name="type" id="adType" required>
+                        <div class="form-error" id="adType-error"></div>
                     </div>
 
-                    <!-- Media Upload Section (for image/video) -->
-                    <div class="form-group" id="mediaUploadSection" style="display: none;">
+                    <!-- Media Upload Section -->
+                    <div class="form-group hidden-section" id="mediaUploadSection">
                         <label for="media_file">
                             Media File <span class="required">*</span>
                         </label>
-                        <div class="file-upload-area">
+                        <div class="file-upload-area" id="fileUploadArea">
                             <div class="file-upload-icon">
                                 <i class="fas fa-cloud-upload-alt"></i>
                             </div>
                             <div class="file-upload-text">
                                 Click to select file or drag and drop
                             </div>
-                            <div class="file-upload-hint">
-                                Images: JPG, PNG, GIF (max 10MB) | Videos: MP4, AVI, MOV, WEBM (max 50MB)
+                            <div class="file-upload-hint" id="fileUploadHint">
+                                Select your media file
                             </div>
                         </div>
                         <input type="file" 
@@ -573,55 +550,47 @@
                                style="display: none;" 
                                accept="image/*,video/*">
                         <div class="file-preview" id="filePreview"></div>
+                        <div class="form-error" id="media_file-error"></div>
                     </div>
 
                     <!-- Google Ads Script Section -->
-                    <div class="google-ads-section" id="googleAdsSection">
+                    <div class="google-ads-section hidden-section" id="googleAdsSection">
                         <div class="google-ads-header">
                             <i class="fab fa-google"></i>
-                            <span>Google Ads Script</span>
+                            <span>Google Ads Script Configuration</span>
                         </div>
                         <div class="form-group">
                             <label for="google_ads_script">
-                                Paste your Google Ads script here <span class="required">*</span>
+                                Google Ads Script <span class="required">*</span>
                             </label>
                             <textarea id="google_ads_script" 
                                       name="google_ads_script" 
-                                      class="form-control script-textarea" 
-                                      placeholder="<script async src=&quot;https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js&quot;></script>
-<!-- Your Ad Unit -->
-<ins class=&quot;adsbygoogle&quot;
-     style=&quot;display:block&quot;
-     data-ad-client=&quot;ca-pub-XXXXXXXXXXXXXXXX&quot;
-     data-ad-slot=&quot;XXXXXXXXXX&quot;
-     data-ad-format=&quot;auto&quot;></ins>
-<script>
-     (adsbygoogle = window.adsbygoogle || []).push({});
-</script>"></textarea>
-                            <div class="script-validation" id="scriptValidation"></div>
-                            <button type="button" class="btn btn-secondary" onclick="validateGoogleAdsScript()">
-                                <i class="fas fa-check"></i>
-                                Validate Script
-                            </button>
+                                      class="form-control script-textarea"
+                                      placeholder="Paste your Google Ads script here..."></textarea>
+                            <div class="form-help">
+                                Paste the complete Google AdSense script from your Google Ads account
+                            </div>
+                            <div class="form-error" id="google_ads_script-error"></div>
                         </div>
                     </div>
 
-                    <!-- Click URL (for image/video ads) -->
-                    <div class="form-group" id="clickUrlSection" style="display: none;">
+                    <!-- Click URL Section -->
+                    <div class="form-group hidden-section" id="clickUrlSection">
                         <label for="click_url">
-                            Click URL <span class="required">*</span>
+                            Destination URL <span class="required">*</span>
                         </label>
                         <input type="url" 
                                id="click_url" 
                                name="click_url" 
                                class="form-control" 
                                placeholder="https://example.com/landing-page">
-                        <div class="form-help">Where users will go when they click the ad</div>
+                        <div class="form-help">Where users will be redirected when they click the ad</div>
                         
                         <div class="form-check">
                             <input type="checkbox" id="open_new_tab" name="open_new_tab" checked>
                             <label for="open_new_tab">Open in new tab</label>
                         </div>
+                        <div class="form-error" id="click_url-error"></div>
                     </div>
 
                     <!-- Slot Position -->
@@ -630,18 +599,19 @@
                             Ad Slot Position <span class="required">*</span>
                         </label>
                         <select id="slot_position" name="slot_position" class="form-control" required>
-                            <option value="">Select slot position</option>
-                            <option value="1">Slot 1 - Header</option>
+                            <option value="">Select ad placement position</option>
+                            <option value="1">Slot 1 - Header Banner</option>
                             <option value="2">Slot 2 - Before Video</option>
                             <option value="3">Slot 3 - Sidebar</option>
                             <option value="4">Slot 4 - After Video</option>
-                            <option value="5">Slot 5 - Footer</option>
+                            <option value="5">Slot 5 - Footer Banner</option>
                         </select>
-                        <div class="form-help">Ads will be shown after every 3 videos in the feed</div>
+                        <div class="form-help">Choose where this ad will appear on your website</div>
+                        <div class="form-error" id="slot_position-error"></div>
                     </div>
 
-                    <!-- Video Duration (for video ads) -->
-                    <div class="form-group" id="durationSection" style="display: none;">
+                    <!-- Video Duration -->
+                    <div class="form-group hidden-section" id="durationSection">
                         <label for="duration">Video Duration (seconds)</label>
                         <input type="number" 
                                id="duration" 
@@ -670,7 +640,7 @@
                                            id="start_date" 
                                            name="start_date" 
                                            class="form-control">
-                                    <div class="form-help">When to start showing this ad (leave empty for immediate)</div>
+                                    <div class="form-help">When to start showing this ad</div>
                                 </div>
                                 <div class="form-group">
                                     <label for="end_date">End Date</label>
@@ -678,13 +648,13 @@
                                            id="end_date" 
                                            name="end_date" 
                                            class="form-control">
-                                    <div class="form-help">When to stop showing this ad (leave empty for no end)</div>
+                                    <div class="form-help">When to stop showing this ad</div>
                                 </div>
                             </div>
                             
                             <div class="form-check">
                                 <input type="checkbox" id="is_active" name="is_active" checked>
-                                <label for="is_active">Activate immediately</label>
+                                <label for="is_active">Activate immediately after creation</label>
                             </div>
                         </div>
                     </div>
@@ -697,7 +667,7 @@
                     <i class="fas fa-times"></i>
                     Cancel
                 </a>
-                <button type="button" class="btn btn-success" onclick="previewAd()">
+                <button type="button" class="btn btn-success" id="previewBtn">
                     <i class="fas fa-eye"></i>
                     Preview
                 </button>
@@ -709,167 +679,283 @@
         </form>
     </div>
 
-    <!-- JavaScript -->
     <script>
+        // Global state
         let currentAdType = null;
         let selectedFile = null;
+        let debugMode = false;
 
-        // Initialize page
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Initializing create ad page...');
+            console.log('Initializing advertisement creation page...');
             
-            // Setup file upload
-            setupFileUpload();
+            // Check if we're in debug mode
+            debugMode = window.location.search.includes('debug=true');
+            if (debugMode) {
+                addDebugTools();
+            }
             
-            // Setup form validation
-            setupFormValidation();
-            
-            // Setup type card clicks
-            setupTypeCards();
-            
-            // Setup advanced toggle
-            setupAdvancedToggle();
-            
-            console.log('✅ Create ad page initialized');
+            initializeForm();
         });
 
-        // Setup type card click handlers
-        function setupTypeCards() {
+        function addDebugTools() {
+            // Add debug panel
+            const debugPanel = document.createElement('div');
+            debugPanel.style.cssText = `
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                background: #000;
+                color: #fff;
+                padding: 15px;
+                border-radius: 8px;
+                z-index: 10000;
+                font-size: 12px;
+                font-family: monospace;
+                max-width: 300px;
+                border: 2px solid #333;
+            `;
+            
+            const isSimulateMode = window.location.search.includes('simulate=true');
+            const isForceMode = window.location.search.includes('force=true');
+            
+            debugPanel.innerHTML = `
+                <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 10px;">🐛 DEBUG MODE</div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Current Mode:</strong><br>
+                    ${isSimulateMode ? '🧪 SIMULATION' : '🚀 REAL SUBMIT'}
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button onclick="fillTestData()" style="margin: 2px 0; padding: 5px 10px; width: 100%;">📝 Fill Test Data</button>
+                    <button onclick="testFormSubmission()" style="margin: 2px 0; padding: 5px 10px; width: 100%;">🧪 Preview Form Data</button>
+                    <button onclick="toggleConsoleLog()" style="margin: 2px 0; padding: 5px 10px; width: 100%;">📊 Toggle Verbose Logs</button>
+                </div>
+                <div style="margin-bottom: 10px; font-size: 11px; line-height: 1.4;">
+                    <strong>URL Params:</strong><br>
+                    • <code>?simulate=true</code> = Simulate only<br>
+                    • <code>?force=true</code> = Force real submit<br>
+                    • <code>?debug=true</code> = Show this panel
+                </div>
+                <div style="margin-top: 10px;">
+                    <a href="?debug=true&simulate=true" style="color: #66d9ef; font-size: 11px;">🧪 Simulate Mode</a> |
+                    <a href="?debug=true&force=true" style="color: #a6e22e; font-size: 11px;">🚀 Real Submit</a>
+                </div>
+            `;
+            document.body.appendChild(debugPanel);
+            
+            console.log('🐛 Debug mode enabled');
+            console.log('📋 Available URL parameters:');
+            console.log('  • ?debug=true - Show debug panel');
+            console.log('  • ?simulate=true - Only simulate submission');
+            console.log('  • ?force=true - Force real submission to server');
+        }
+
+        // Debug functions
+        window.testFormSubmission = function() {
+            console.log('🧪 Testing form submission...');
+            const formData = new FormData(document.getElementById('createAdForm'));
+            console.log('Form data:', Object.fromEntries(formData));
+            console.log('Current ad type:', currentAdType);
+            console.log('Selected file:', selectedFile);
+            showNotification('Form data logged to console', 'info');
+        };
+
+        window.fillTestData = function() {
+            console.log('🧪 Filling test data...');
+            document.getElementById('title').value = 'Test Advertisement';
+            document.getElementById('description').value = 'This is a test advertisement for development';
+            document.getElementById('slot_position').value = '1';
+            
+            // Select image ad type
+            selectAdType('image');
+            
+            // Fill URL for image/video ads
+            setTimeout(() => {
+                if (currentAdType !== 'google_ads') {
+                    document.getElementById('click_url').value = 'https://example.com';
+                }
+            }, 100);
+            
+            showNotification('Test data filled', 'success');
+        };
+
+        window.toggleConsoleLog = function() {
+            window.enableVerboseLogging = !window.enableVerboseLogging;
+            console.log('Verbose logging:', window.enableVerboseLogging ? 'ON' : 'OFF');
+            showNotification(`Verbose logging ${window.enableVerboseLogging ? 'enabled' : 'disabled'}`, 'info');
+        };
+
+        function initializeForm() {
+            // Check server connection first
+            checkServerConnection();
+            
+            // Setup type card selection
             document.querySelectorAll('.type-card').forEach(card => {
                 card.addEventListener('click', function() {
-                    const type = this.getAttribute('data-type');
-                    selectAdType(type);
+                    selectAdType(this.dataset.type);
                 });
+            });
+
+            // Setup file upload
+            setupFileUpload();
+
+            // Setup form submission
+            document.getElementById('createAdForm').addEventListener('submit', handleSubmit);
+
+            // Setup advanced options toggle
+            document.getElementById('advancedHeader').addEventListener('click', toggleAdvanced);
+
+            // Setup preview button
+            document.getElementById('previewBtn').addEventListener('click', previewAd);
+
+            console.log('Form initialized successfully');
+        }
+
+        function checkServerConnection() {
+            // Test if the ads endpoint exists
+            fetch('/admin/ads', {
+                method: 'HEAD', // Just check if endpoint exists
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (window.enableVerboseLogging) {
+                    console.log('✅ Server connection test:', response.status);
+                }
+                
+                if (response.status === 405) {
+                    // Method not allowed is OK - means endpoint exists but doesn't accept HEAD
+                    console.log('✅ Endpoint exists (405 Method Not Allowed for HEAD is normal)');
+                } else if (response.ok) {
+                    console.log('✅ Endpoint is accessible');
+                }
+            })
+            .catch(error => {
+                console.warn('⚠️ Server connection test failed:', error.message);
+                
+                // Show warning notification
+                setTimeout(() => {
+                    showNotification('Warning: Cannot connect to server. Form may not submit properly.', 'warning');
+                }, 1000);
             });
         }
 
-        // Setup advanced toggle
-        function setupAdvancedToggle() {
-            const advancedHeader = document.getElementById('advancedHeader');
-            if (advancedHeader) {
-                advancedHeader.addEventListener('click', toggleAdvanced);
-            }
-        }
-
-        // Select ad type
         function selectAdType(type) {
-            console.log('📝 Selected ad type:', type);
+            console.log('Selected ad type:', type);
             
-            // Update visual selection
+            // Clear previous selections
             document.querySelectorAll('.type-card').forEach(card => {
                 card.classList.remove('selected');
             });
+
+            // Mark selected
             document.querySelector(`[data-type="${type}"]`).classList.add('selected');
             
-            // Set hidden input
+            // Set form value
             document.getElementById('adType').value = type;
             currentAdType = type;
-            
+
             // Show/hide relevant sections
-            toggleSections(type);
-            
-            // Update form validation
-            updateFormValidation(type);
+            showRelevantSections(type);
         }
 
-        // Toggle sections based on ad type
-        function toggleSections(type) {
-            const mediaSection = document.getElementById('mediaUploadSection');
-            const googleAdsSection = document.getElementById('googleAdsSection');
-            const clickUrlSection = document.getElementById('clickUrlSection');
-            const durationSection = document.getElementById('durationSection');
-            
-            // Hide all sections first
-            mediaSection.style.display = 'none';
-            googleAdsSection.style.display = 'none';
-            clickUrlSection.style.display = 'none';
-            durationSection.style.display = 'none';
-            
+        function showRelevantSections(type) {
+            // Hide all optional sections first
+            document.querySelectorAll('.hidden-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
             if (type === 'google_ads') {
-                googleAdsSection.style.display = 'block';
+                document.getElementById('googleAdsSection').style.display = 'block';
             } else {
-                mediaSection.style.display = 'block';
-                clickUrlSection.style.display = 'block';
+                document.getElementById('mediaUploadSection').style.display = 'block';
+                document.getElementById('clickUrlSection').style.display = 'block';
                 
                 if (type === 'video') {
-                    durationSection.style.display = 'block';
+                    document.getElementById('durationSection').style.display = 'block';
+                }
+
+                // Update file hints
+                const hint = document.getElementById('fileUploadHint');
+                if (type === 'image') {
+                    hint.textContent = 'Images: JPG, PNG, GIF (max 10MB)';
+                    document.getElementById('media_file').accept = 'image/*';
+                } else if (type === 'video') {
+                    hint.textContent = 'Videos: MP4, AVI, MOV, WEBM (max 50MB)';
+                    document.getElementById('media_file').accept = 'video/*';
                 }
             }
         }
 
-        // Update form validation based on type
-        function updateFormValidation(type) {
-            const mediaFile = document.getElementById('media_file');
-            const googleAdsScript = document.getElementById('google_ads_script');
-            const clickUrl = document.getElementById('click_url');
-            
-            if (type === 'google_ads') {
-                mediaFile.required = false;
-                googleAdsScript.required = true;
-                clickUrl.required = false;
-            } else {
-                mediaFile.required = true;
-                googleAdsScript.required = false;
-                clickUrl.required = true;
-            }
-        }
-
-        // Setup file upload
         function setupFileUpload() {
             const fileInput = document.getElementById('media_file');
-            const uploadArea = document.querySelector('.file-upload-area');
-            const preview = document.getElementById('filePreview');
-            
-            // File input change
+            const uploadArea = document.getElementById('fileUploadArea');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+
             fileInput.addEventListener('change', function(e) {
-                handleFileSelect(e.target.files[0]);
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
             });
-            
-            // Click to upload
-            uploadArea.addEventListener('click', function() {
-                fileInput.click();
-            });
-            
+
             // Drag and drop
             uploadArea.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 uploadArea.classList.add('dragover');
             });
-            
+
             uploadArea.addEventListener('dragleave', function(e) {
                 e.preventDefault();
                 uploadArea.classList.remove('dragover');
             });
-            
+
             uploadArea.addEventListener('drop', function(e) {
                 e.preventDefault();
                 uploadArea.classList.remove('dragover');
-                
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
-                    fileInput.files = files;
                     handleFileSelect(files[0]);
                 }
             });
         }
 
-        // Handle file selection
         function handleFileSelect(file) {
-            if (!file) return;
-            
             selectedFile = file;
-            const preview = document.getElementById('filePreview');
             
             // Validate file
-            const validation = validateFile(file);
-            if (!validation.valid) {
-                showNotification(validation.message, 'error');
+            if (!validateFile(file)) {
                 return;
             }
-            
+
             // Show preview
+            showFilePreview(file);
+        }
+
+        function validateFile(file) {
+            const maxSizes = {
+                image: 10 * 1024 * 1024, // 10MB
+                video: 50 * 1024 * 1024  // 50MB
+            };
+
+            if (file.type.startsWith('image/')) {
+                if (file.size > maxSizes.image) {
+                    showNotification('Image file too large. Maximum size is 10MB.', 'error');
+                    return false;
+                }
+            } else if (file.type.startsWith('video/')) {
+                if (file.size > maxSizes.video) {
+                    showNotification('Video file too large. Maximum size is 50MB.', 'error');
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function showFilePreview(file) {
+            const preview = document.getElementById('filePreview');
             preview.style.display = 'block';
-            
+
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -901,40 +987,6 @@
             }
         }
 
-        // Validate file
-        function validateFile(file) {
-            const maxSizes = {
-                image: 10 * 1024 * 1024, // 10MB
-                video: 50 * 1024 * 1024  // 50MB
-            };
-            
-            const allowedTypes = {
-                image: ['image/jpeg', 'image/png', 'image/gif'],
-                video: ['video/mp4', 'video/avi', 'video/mov', 'video/webm']
-            };
-            
-            if (file.type.startsWith('image/')) {
-                if (!allowedTypes.image.includes(file.type)) {
-                    return { valid: false, message: 'Please select a valid image file (JPG, PNG, GIF).' };
-                }
-                if (file.size > maxSizes.image) {
-                    return { valid: false, message: 'Image file size must be less than 10MB.' };
-                }
-            } else if (file.type.startsWith('video/')) {
-                if (!allowedTypes.video.includes(file.type)) {
-                    return { valid: false, message: 'Please select a valid video file (MP4, AVI, MOV, WEBM).' };
-                }
-                if (file.size > maxSizes.video) {
-                    return { valid: false, message: 'Video file size must be less than 50MB.' };
-                }
-            } else {
-                return { valid: false, message: 'Please select an image or video file.' };
-            }
-            
-            return { valid: true };
-        }
-
-        // Format file size
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -943,46 +995,6 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Validate Google Ads script
-        async function validateGoogleAdsScript() {
-            const script = document.getElementById('google_ads_script').value.trim();
-            const validation = document.getElementById('scriptValidation');
-            
-            if (!script) {
-                validation.className = 'script-validation invalid';
-                validation.style.display = 'block';
-                validation.innerHTML = '<i class="fas fa-times"></i> Please enter a Google Ads script';
-                return;
-            }
-            
-            try {
-                showNotification('Validating script...', 'info');
-                
-                // Basic validation for Google Ads script
-                const hasAdsByGoogle = script.includes('adsbygoogle') || script.includes('googlesyndication');
-                const hasScriptTag = script.includes('<script') && script.includes('</script>');
-                
-                validation.style.display = 'block';
-                
-                if (hasAdsByGoogle && hasScriptTag) {
-                    validation.className = 'script-validation valid';
-                    validation.innerHTML = '<i class="fas fa-check"></i> Script validation passed!';
-                    showNotification('Script validation successful!', 'success');
-                } else {
-                    validation.className = 'script-validation invalid';
-                    validation.innerHTML = '<i class="fas fa-times"></i> Invalid Google Ads script format';
-                    showNotification('Script validation failed', 'error');
-                }
-            } catch (error) {
-                console.error('Script validation error:', error);
-                validation.className = 'script-validation invalid';
-                validation.style.display = 'block';
-                validation.innerHTML = '<i class="fas fa-times"></i> Failed to validate script. Please check your connection.';
-                showNotification('Validation failed. Please try again.', 'error');
-            }
-        }
-
-        // Toggle advanced options
         function toggleAdvanced() {
             const content = document.getElementById('advancedContent');
             const toggle = document.getElementById('advancedToggle');
@@ -996,166 +1008,225 @@
             }
         }
 
-        // Setup form validation
-        function setupFormValidation() {
-            const form = document.getElementById('createAdForm');
-            
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitForm();
+        function validateForm() {
+            let isValid = true;
+
+            // Clear previous errors
+            document.querySelectorAll('.form-error').forEach(error => {
+                error.style.display = 'none';
             });
-            
-            // Real-time validation
-            const requiredFields = ['title', 'slot_position'];
-            requiredFields.forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                if (field) {
-                    field.addEventListener('blur', function() {
-                        validateField(this);
-                    });
+            document.querySelectorAll('.form-control').forEach(field => {
+                field.classList.remove('error');
+            });
+
+            // Check title
+            const title = document.getElementById('title').value.trim();
+            if (!title) {
+                showFieldError('title', 'Title is required');
+                isValid = false;
+            }
+
+            // Check ad type
+            if (!currentAdType) {
+                showFieldError('adType', 'Please select an advertisement type');
+                isValid = false;
+            }
+
+            // Check slot position
+            const slot = document.getElementById('slot_position').value;
+            if (!slot) {
+                showFieldError('slot_position', 'Please select a slot position');
+                isValid = false;
+            }
+
+            // Type-specific validation
+            if (currentAdType === 'google_ads') {
+                const script = document.getElementById('google_ads_script').value.trim();
+                if (!script) {
+                    showFieldError('google_ads_script', 'Google Ads script is required');
+                    isValid = false;
                 }
-            });
+            } else {
+                // Check file
+                if (!selectedFile) {
+                    showFieldError('media_file', 'Please select a media file');
+                    isValid = false;
+                }
+
+                // Check URL
+                const url = document.getElementById('click_url').value.trim();
+                if (!url) {
+                    showFieldError('click_url', 'Destination URL is required');
+                    isValid = false;
+                } else if (!isValidUrl(url)) {
+                    showFieldError('click_url', 'Please enter a valid URL');
+                    isValid = false;
+                }
+            }
+
+            return isValid;
         }
 
-        // Validate individual field
-        function validateField(field) {
-            const value = field.value.trim();
+        function showFieldError(fieldId, message) {
+            const field = document.getElementById(fieldId);
+            const errorDiv = document.getElementById(fieldId + '-error');
             
-            if (field.required && !value) {
-                field.style.borderColor = '#dc3545';
-                return false;
-            } else {
-                field.style.borderColor = '#28a745';
-                return true;
+            if (field) {
+                field.classList.add('error');
+            }
+            
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
             }
         }
 
-        // Submit form
-        async function submitForm() {
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function handleSubmit(e) {
+            e.preventDefault();
+            
             if (!validateForm()) {
+                showNotification('Please fix the errors above', 'error');
                 return;
             }
-            
+
             const submitBtn = document.getElementById('submitBtn');
             const originalText = submitBtn.innerHTML;
             
             // Show loading state
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+            // Create form data
+            const formData = new FormData(document.getElementById('createAdForm'));
             
-            try {
-                const formData = new FormData(document.getElementById('createAdForm'));
+            // Add file if selected
+            if (selectedFile) {
+                formData.set('media_file', selectedFile);
+            }
+
+            showNotification('Creating advertisement...', 'info');
+
+            // Check if we're in development mode but force real submission
+            const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const forceRealSubmit = window.location.search.includes('force=true') || !window.location.search.includes('simulate=true');
+            
+            if (debugMode && !forceRealSubmit) {
+                // Only simulate if explicitly requested with simulate=true
+                console.log('🧪 SIMULATION MODE - Form Data:', Object.fromEntries(formData));
+                console.log('📝 Add "force=true" to URL to submit for real');
+                setTimeout(() => {
+                    showNotification('Advertisement created successfully! (SIMULATION - Add ?force=true to URL for real submission)', 'success');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }, 1500);
+                return;
+            }
+
+            // Real submission to server
+            console.log('🚀 Submitting to server...');
+            console.log('📊 Form Data:', Object.fromEntries(formData));
+            
+            fetch('/admin/ads', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin', // Include cookies
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
                 
-                showNotification('Creating advertisement...', 'info');
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error('❌ Server response:', text);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}\n${text.substring(0, 200)}...`);
+                    });
+                }
                 
-                const response = await fetch('/admin/ads', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    // If response is not JSON, try to parse as text
+                    return response.text().then(text => {
+                        console.log('📄 Non-JSON response:', text);
+                        // Try to find JSON in the response
+                        const jsonMatch = text.match(/\{.*\}/);
+                        if (jsonMatch) {
+                            try {
+                                return JSON.parse(jsonMatch[0]);
+                            } catch (e) {
+                                throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+                            }
+                        } else {
+                            throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+                        }
+                    });
+                }
+            })
+            .then(data => {
+                console.log('✅ Response data:', data);
                 
                 if (data.success) {
                     showNotification('Advertisement created successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/admin/ads';
-                    }, 1500);
-                } else {
-                    showNotification(data.message || 'Failed to create advertisement', 'error');
                     
-                    // Highlight field with error if specified
-                    if (data.field) {
-                        const field = document.getElementById(data.field);
-                        if (field) {
-                            field.style.borderColor = '#dc3545';
-                            field.focus();
-                        }
+                    // Clear form after successful submission
+                    if (data.redirect || true) {
+                        setTimeout(() => {
+                            window.location.href = data.redirect || '/admin/ads';
+                        }, 1500);
                     }
+                } else {
+                    throw new Error(data.message || data.error || 'Failed to create advertisement');
                 }
-            } catch (error) {
-                console.error('Submit error:', error);
-                showNotification('Failed to create advertisement. Please try again.', 'error');
-            } finally {
+            })
+            .catch(error => {
+                console.error('❌ Submit Error Details:', error);
+                
+                let errorMessage = 'Failed to create advertisement';
+                
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = '🔌 Cannot connect to server. Please check:\n• Server is running\n• Network connection\n• /admin/ads endpoint exists';
+                } else if (error.message.includes('HTTP 404')) {
+                    errorMessage = '🚫 Endpoint not found. The /admin/ads route may not be configured on the server.';
+                } else if (error.message.includes('HTTP 500')) {
+                    errorMessage = '💥 Server error. Check server logs for details.';
+                } else if (error.message.includes('HTTP 403')) {
+                    errorMessage = '🚪 Access denied. Please check if you are logged in with proper permissions.';
+                } else if (error.message.includes('non-JSON response')) {
+                    errorMessage = '📄 Server returned an unexpected response format. Check server logs.';
+                } else {
+                    errorMessage = `❌ ${error.message}`;
+                }
+                
+                showNotification(errorMessage, 'error');
+                
                 // Restore button
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
-            }
+            });
         }
 
-        // Validate entire form
-        function validateForm() {
-            let isValid = true;
-            
-            // Check ad type
-            if (!currentAdType) {
-                showNotification('Please select an advertisement type', 'error');
-                return false;
-            }
-            
-            // Check title
-            const title = document.getElementById('title').value.trim();
-            if (!title) {
-                showNotification('Please enter a title', 'error');
-                document.getElementById('title').focus();
-                return false;
-            }
-            
-            // Check slot position
-            const slotPosition = document.getElementById('slot_position').value;
-            if (!slotPosition) {
-                showNotification('Please select a slot position', 'error');
-                document.getElementById('slot_position').focus();
-                return false;
-            }
-            
-            // Type-specific validation
-            if (currentAdType === 'google_ads') {
-                const script = document.getElementById('google_ads_script').value.trim();
-                if (!script) {
-                    showNotification('Please enter a Google Ads script', 'error');
-                    document.getElementById('google_ads_script').focus();
-                    return false;
-                }
-            } else {
-                // Check file upload
-                const fileInput = document.getElementById('media_file');
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    showNotification('Please select a media file', 'error');
-                    return false;
-                }
-                
-                // Check click URL
-                const clickUrl = document.getElementById('click_url').value.trim();
-                if (!clickUrl) {
-                    showNotification('Please enter a click URL', 'error');
-                    document.getElementById('click_url').focus();
-                    return false;
-                }
-                
-                // Validate URL format
-                try {
-                    new URL(clickUrl);
-                } catch {
-                    showNotification('Please enter a valid URL', 'error');
-                    document.getElementById('click_url').focus();
-                    return false;
-                }
-            }
-            
-            return isValid;
-        }
-
-        // Preview ad
         function previewAd() {
             if (!validateForm()) {
+                showNotification('Please complete the form first', 'warning');
                 return;
             }
             
             showNotification('Preview functionality coming soon!', 'info');
-            // You can implement preview functionality here
         }
 
-        // Show notification
         function showNotification(message, type = 'info') {
             // Remove existing notifications
             document.querySelectorAll('.notification').forEach(n => n.remove());
@@ -1170,7 +1241,7 @@
             const notification = document.createElement('div');
             notification.className = `notification notification-${type}`;
             notification.innerHTML = `
-                <i class="fas fa-${icons[type] || 'info-circle'}"></i>
+                <i class="fas fa-${icons[type]}"></i>
                 <span>${message}</span>
             `;
             
@@ -1185,61 +1256,39 @@
             }, 5000);
         }
 
-        // Auto-save draft (optional feature)
-        let draftTimer;
-        function startDraftSaving() {
-            // Save form data to localStorage every 30 seconds
-            draftTimer = setInterval(() => {
-                const formData = new FormData(document.getElementById('createAdForm'));
-                const draft = {};
-                for (let [key, value] of formData.entries()) {
-                    if (key !== 'media_file') { // Don't save file
-                        draft[key] = value;
-                    }
+        // CSS for animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
                 }
-                localStorage.setItem('ad_draft', JSON.stringify(draft));
-                console.log('📝 Draft saved');
-            }, 30000);
-        }
-
-        // Load draft on page load
-        function loadDraft() {
-            const draft = localStorage.getItem('ad_draft');
-            if (draft) {
-                try {
-                    const data = JSON.parse(draft);
-                    Object.keys(data).forEach(key => {
-                        const field = document.getElementById(key);
-                        if (field && field.type !== 'file') {
-                            field.value = data[key];
-                            if (key === 'type') {
-                                selectAdType(data[key]);
-                            }
-                        }
-                    });
-                    showNotification('Draft loaded', 'info');
-                } catch (error) {
-                    console.error('Failed to load draft:', error);
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
                 }
             }
-        }
-
-        // Clear draft
-        function clearDraft() {
-            localStorage.removeItem('ad_draft');
-            if (draftTimer) {
-                clearInterval(draftTimer);
+            
+            .fa-spin {
+                animation: fa-spin 2s infinite linear;
             }
-        }
+            
+            @keyframes fa-spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+        `;
+        document.head.appendChild(style);
 
-        // Initialize draft features
-        window.addEventListener('load', () => {
-            loadDraft();
-            startDraftSaving();
-        });
-
-        window.addEventListener('beforeunload', () => {
-            clearDraft();
+        // Handle errors gracefully
+        window.addEventListener('error', function(event) {
+            console.error('Error:', event.error);
+            showNotification('An unexpected error occurred', 'error');
         });
     </script>
 </body>

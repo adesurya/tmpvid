@@ -1,71 +1,688 @@
-<div class="welcome-card">
-    <h2>Welcome to Admin Dashboard</h2>
-    <p>Manage your video platform from here. Upload videos, manage categories, and view analytics.</p>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 30px;">
-        <div style="background: #3498db; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-            <i class="fas fa-video" style="font-size: 32px; margin-bottom: 10px;"></i>
-            <h3>Videos</h3>
-            <p id="totalVideos">Loading...</p>
-        </div>
-        
-        <div style="background: #27ae60; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-            <i class="fas fa-eye" style="font-size: 32px; margin-bottom: 10px;"></i>
-            <h3>Total Views</h3>
-            <p id="totalViews">Loading...</p>
-        </div>
-        
-        <div style="background: #f39c12; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-            <i class="fas fa-users" style="font-size: 32px; margin-bottom: 10px;"></i>
-            <h3>Users</h3>
-            <p id="totalUsers">Loading...</p>
-        </div>
-        
-        <div style="background: #e74c3c; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-            <i class="fas fa-tags" style="font-size: 32px; margin-bottom: 10px;"></i>
-            <h3>Categories</h3>
-            <p id="totalCategories">Loading...</p>
-        </div>
-    </div>
-    
-    <div style="margin-top: 30px;">
-        <a href="/admin/videos" class="btn btn-primary" style="margin-right: 10px;">
-            <i class="fas fa-upload"></i>
-            Upload Video
-        </a>
-        <a href="/admin/categories" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            Add Category
-        </a>
-    </div>
-</div>
-
-<script>
-// Load dashboard stats
-fetch('/api/admin/dashboard/stats')
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('totalVideos').textContent = data.data.totalVideos || 0;
-            document.getElementById('totalViews').textContent = formatNumber(data.data.totalViews || 0);
-            document.getElementById('totalUsers').textContent = data.data.totalUsers || 0;
-            document.getElementById('totalCategories').textContent = data.data.totalCategories || 0;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-    })
-    .catch(error => {
-        console.error('Failed to load stats:', error);
-        document.getElementById('totalVideos').textContent = '0';
-        document.getElementById('totalViews').textContent = '0';
-        document.getElementById('totalUsers').textContent = '0';
-        document.getElementById('totalCategories').textContent = '0';
-    });
 
-function formatNumber(num) {
-    if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-}
-</script>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 0 1.5rem;
+        }
+
+        .logo h1 {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0 1rem;
+        }
+
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: #666;
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-link i {
+            margin-right: 1rem;
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link span {
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 0;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #666;
+            cursor: pointer;
+        }
+
+        .header-title h2 {
+            font-size: 2rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-title p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient);
+        }
+
+        .stat-card.videos::before {
+            --gradient: linear-gradient(45deg, #3498db, #2980b9);
+        }
+
+        .stat-card.views::before {
+            --gradient: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+
+        .stat-card.users::before {
+            --gradient: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .stat-card.categories::before {
+            --gradient: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .stat-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            position: relative;
+        }
+
+        .stat-icon.videos {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+
+        .stat-icon.views {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+
+        .stat-icon.users {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .stat-icon.categories {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .stat-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 3rem;
+        }
+
+        .action-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .action-btn i {
+            font-size: 1.1rem;
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .header {
+                padding: 1rem;
+            }
+
+            .header-title h2 {
+                font-size: 1.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .user-profile {
+                gap: 0.5rem;
+            }
+
+            .user-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-card {
+                padding: 1.5rem;
+            }
+
+            .stat-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+        }
+
+        /* Overlay for mobile */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="logo">
+                <h1><i class="fas fa-video"></i> KlipQ</h1>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link active">
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/videos" class="nav-link">
+                        <i class="fas fa-video"></i>
+                        <span>Videos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/categories" class="nav-link">
+                        <i class="fas fa-tags"></i>
+                        <span>Categories</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/series" class="nav-link">
+                        <i class="fas fa-list"></i>
+                        <span>Series</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/users" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/ads" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Advertisements</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/api-dashboard" class="nav-link">
+                        <i class="fas fa-code"></i>
+                        <span>API & RSS</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="mobile-toggle" id="mobileToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="header-title">
+                        <h2>Welcome Back, Admin!</h2>
+                        <p>Manage your video platform with ease and efficiency</p>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-info">
+                        <div style="font-weight: 600;">Admin User</div>
+                        <div style="font-size: 0.9rem; color: #666;">Administrator</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card videos" onclick="navigateTo('/admin/videos')">
+                    <div class="stat-icon videos">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <h3>Total Videos</h3>
+                    <div class="stat-number" id="totalVideos">
+                        <div class="loading"></div>
+                    </div>
+                    <div class="stat-label">Published videos</div>
+                </div>
+
+                <div class="stat-card views" onclick="navigateTo('/admin/analytics')">
+                    <div class="stat-icon views">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <h3>Total Views</h3>
+                    <div class="stat-number" id="totalViews">
+                        <div class="loading"></div>
+                    </div>
+                    <div class="stat-label">Video views</div>
+                </div>
+
+                <div class="stat-card users" onclick="navigateTo('/admin/users')">
+                    <div class="stat-icon users">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>Active Users</h3>
+                    <div class="stat-number" id="totalUsers">
+                        <div class="loading"></div>
+                    </div>
+                    <div class="stat-label">Registered users</div>
+                </div>
+
+                <div class="stat-card categories" onclick="navigateTo('/admin/series')">
+                    <div class="stat-icon categories">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h3>Categories</h3>
+                    <div class="stat-number" id="totalCategories">
+                        <div class="loading"></div>
+                    </div>
+                    <div class="stat-label">Content categories</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="/admin/videos" class="action-btn">
+                    <i class="fas fa-upload"></i>
+                    Upload New Video
+                </a>
+                <a href="/admin/series" class="action-btn">
+                    <i class="fas fa-plus"></i>
+                    Create Series
+                </a>
+                <a href="/admin/analytics" class="action-btn">
+                    <i class="fas fa-chart-bar"></i>
+                    View Analytics
+                </a>
+                <a href="/admin/settings" class="action-btn">
+                    <i class="fas fa-cog"></i>
+                    Platform Settings
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Mobile navigation
+        const mobileToggle = document.getElementById('mobileToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const mainContent = document.getElementById('mainContent');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('mobile-visible');
+            overlay.classList.toggle('active');
+        }
+
+        mobileToggle.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', toggleSidebar);
+
+        // Navigation handling
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                // Don't prevent default for actual navigation
+                if (this.getAttribute('href') !== '#') {
+                    return;
+                }
+                
+                e.preventDefault();
+                
+                // Remove active class from all links
+                navLinks.forEach(l => l.classList.remove('active'));
+                
+                // Add active class to clicked link
+                this.classList.add('active');
+                
+                // Close mobile sidebar
+                if (window.innerWidth <= 768) {
+                    toggleSidebar();
+                }
+            });
+        });
+
+        // Navigation function
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+
+        // Load dashboard stats with improved error handling
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/admin/dashboard/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatCard('totalVideos', data.data.totalVideos || 0);
+                    //updateStatCard('totalViews', formatNumber(data.data.dummy || 0));
+                    updateStatCard('totalUsers', data.data.totalUsers || 0);
+                    updateStatCard('totalCategories', data.data.totalCategories || 0);
+                } else {
+                    throw new Error('Failed to load stats');
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                // Show default values on error
+                updateStatCard('totalVideos', '0');
+                updateStatCard('totalViews', '0');
+                updateStatCard('totalUsers', '0');
+                updateStatCard('totalCategories', '0');
+            }
+        }
+
+        function updateStatCard(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = value;
+                // Add animation effect
+                element.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                }, 200);
+            }
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        // Load stats on page load
+        document.addEventListener('DOMContentLoaded', loadDashboardStats);
+
+        // Responsive handling
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('mobile-visible');
+                overlay.classList.remove('active');
+            }
+        });
+
+        // Add smooth scrolling
+        document.documentElement.style.scrollBehavior = 'smooth';
+
+        // Add loading animation to stats cards
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+            card.style.animation = 'fadeInUp 0.6s ease forwards';
+        });
+
+        // CSS for animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .stat-card {
+                opacity: 0;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

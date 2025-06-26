@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title><%= video.title %> - VideoApp</title>
+    <title><%= video.title %> - KlipQ</title>
     
     <!-- Basic Meta Tags -->
     <meta name="description" content="<%= video.description || video.title %>">
@@ -107,7 +107,7 @@
     <div class="app-container">
         <!-- Top Navigation -->
         <nav class="top-nav">
-            <a href="/" class="logo">VideoApp</a>
+            <a href="/" class="logo">KlipQ</a>
             <div class="nav-icons">
                 <button class="nav-icon" onclick="history.back()">
                     <i class="fas fa-arrow-left"></i>
@@ -444,7 +444,7 @@
             
             const baseUrl = window.location.origin;
             const videoUrl = `${baseUrl}/video/${currentShareVideoSlug}`;
-            const shareText = currentShareVideoTitle ? `${currentShareVideoTitle} - Watch on VideoApp` : 'Check out this amazing video on VideoApp!';
+            const shareText = currentShareVideoTitle ? `${currentShareVideoTitle} - Watch on KlipQ` : 'Check out this amazing video on KlipQ!';
             
             switch (platform) {
                 case 'copy':

@@ -1,3 +1,4 @@
+// src/routes/api/index.js - FIXED VERSION
 const express = require('express');
 const router = express.Router();
 
@@ -8,31 +9,32 @@ const seriesRoutes = require('./series');
 const adminRoutes = require('./admin');
 const publicRoutes = require('./public');
 
-// FIXED: Import ads routes
-let adsRoutes;
+// Import ads routes with error handling
+let adApiRoutes = null;
 let adsAvailable = false;
 
 try {
-    adsRoutes = require('./ads'); // Use separate ads API file
+    adApiRoutes = require('./ads');
     adsAvailable = true;
     console.log('✅ Ads API routes loaded successfully');
 } catch (error) {
     console.warn('⚠️ Ads API routes not available:', error.message);
-    adsRoutes = null;
-    adsAvailable = false;
+    
+    // Create fallback router for ads
+    adApiRoutes = express.Router();
+    adApiRoutes.use('*', (req, res) => {
+        res.status(503).json({
+            success: false,
+            message: 'Advertisement API is not available',
+            error: 'Ads system not loaded',
+            timestamp: new Date().toISOString()
+        });
+    });
 }
 
-// Register ads routes
-if (adsAvailable && adsRoutes) {
-    router.use('/ads', adsRoutes);
-    console.log('✅ Ads API routes registered at /api/ads');
-}
-
-
-// Debug middleware for API routes
+// Debug middleware for API routes - FIRST
 router.use((req, res, next) => {
-    console.log(`[API] ${req.method} ${req.originalUrl}`);
-    console.log(`[API] Accept header: ${req.headers.accept}`);
+    console.log(`[API] ${req.method} ${req.originalUrl} - Body:`, req.body ? 'Present' : 'None');
     next();
 });
 
@@ -42,87 +44,108 @@ router.use((req, res, next) => {
     next();
 });
 
-// FIXED: Register ads routes FIRST (they need to be specific)
-if (adsAvailable && adsRoutes) {
-    router.use('/ads', adsRoutes);
-    console.log('✅ Ads API routes registered at /api/ads');
-}
-
-// Public API routes
-router.use('/public', publicRoutes);
-router.use('/videos', videoRoutes);
-router.use('/categories', categoryRoutes);
-router.use('/series', seriesRoutes);
-
-// Admin API routes
-router.use('/admin', adminRoutes);
-
-// Health check endpoint
+// Health check endpoint - EARLY
 router.get('/health', (req, res) => {
-    const endpoints = [
-        'GET /api/health',
-        'GET /api/public/feed',
-        'GET /api/public/rss',
-        'GET /api/videos/feed',
-        'GET /api/categories',
-        'POST /api/videos/:id/like',
-        'POST /api/videos/:id/share',
-        'POST /api/videos/:id/view'
-    ];
-
-    // FIXED: Add ads endpoints if available
-    if (adsAvailable) {
-        endpoints.push(
-            'GET /api/ads/feed',
-            'POST /api/ads/:id/click',
-            'GET /api/admin/ads/health',
-            'GET /api/admin/ads/status',
-            'POST /api/admin/ads/migrate'
-        );
-    }
-
     res.json({
         success: true,
-        message: 'API is running',
         timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        ads_system: {
-            available: adsAvailable,
-            routes_registered: adsAvailable
+        services: {
+            ads_api: adsAvailable,
+            series_api: true,
+            categories_api: true,
+            videos_api: true
         },
         endpoints: {
-            public: '/api/public',
-            admin: '/api/admin',
-            videos: '/api/videos',
-            categories: '/api/categories',
-            ads: adsAvailable ? '/api/ads' : 'not available'
-        },
-        available_endpoints: endpoints
+            series: [
+                'GET /api/series',
+                'POST /api/series',
+                'GET /api/series/:id',
+                'PUT /api/series/:id',
+                'DELETE /api/series/:id',
+                'GET /api/series/admin/with-categories',
+                'PATCH /api/series/:id/update-episode-count'
+            ],
+            categories: [
+                'GET /api/categories',
+                'POST /api/categories',
+                'PUT /api/categories/:id',
+                'DELETE /api/categories/:id'
+            ],
+            ads: adsAvailable ? [
+                'GET /api/ads/feed',
+                'POST /api/ads/click/:id',
+                'GET /api/ads/admin/ads/summary',
+                'GET /api/ads/admin/ads/slots/overview'
+            ] : ['Service unavailable']
+        }
     });
 });
 
-// 404 handler for API routes
+// Register specific API routes - ORDER MATTERS!
+// Most specific routes first, then more general ones
+
+// 1. Public routes (has /public prefix)
+router.use('/public', publicRoutes);
+
+// 2. Admin routes (has /admin prefix) - MUST be before other routes
+router.use('/admin', adminRoutes);
+
+// 3. Specific entity routes
+router.use('/videos', videoRoutes);
+router.use('/categories', categoryRoutes);
+router.use('/series', seriesRoutes);  // This is the critical route for your issue
+
+// 4. Ads routes
+router.use('/ads', adApiRoutes);
+
+// API status endpoint
+router.get('/status', (req, res) => {
+    res.json({
+        success: true,
+        api: {
+            name: 'KlipQ API',
+            version: '1.0.0',
+            status: 'active'
+        },
+        registered_routes: {
+            '/api/public': 'Public API endpoints',
+            '/api/admin': 'Admin API endpoints',
+            '/api/videos': 'Video management',
+            '/api/categories': 'Category management',
+            '/api/series': 'Series management',
+            '/api/ads': adsAvailable ? 'Advertisement management' : 'Not available'
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// 404 handler for API routes - LAST
 router.use('*', (req, res) => {
-    console.log(`[API] 404 - Route not found: ${req.originalUrl}`);
+    console.warn(`[API] 404 - Route not found: ${req.method} ${req.originalUrl}`);
     
     const availableEndpoints = [
         'GET /api/health',
-        'GET /api/public/feed',
-        'GET /api/public/rss',
-        'GET /api/videos/feed',
+        'GET /api/status',
         'GET /api/categories',
-        'POST /api/videos/:id/like',
-        'POST /api/videos/:id/share',
-        'POST /api/videos/:id/view'
+        'POST /api/categories',
+        'PUT /api/categories/:id',
+        'DELETE /api/categories/:id',
+        'GET /api/series',
+        'POST /api/series',
+        'GET /api/series/:id',
+        'PUT /api/series/:id',
+        'DELETE /api/series/:id',
+        'GET /api/series/admin/with-categories',
+        'PATCH /api/series/:id/update-episode-count'
     ];
 
     // Add ads endpoints if available
     if (adsAvailable) {
         availableEndpoints.push(
             'GET /api/ads/feed',
-            'POST /api/ads/:id/click',
-            'GET /api/admin/ads/health',
-            'GET /api/admin/ads/status'
+            'POST /api/ads/click/:id',
+            'GET /api/ads/admin/ads/summary',
+            'GET /api/ads/admin/ads/slots/overview'
         );
     }
 
@@ -130,11 +153,10 @@ router.use('*', (req, res) => {
         success: false,
         message: 'API endpoint not found',
         path: req.originalUrl,
+        method: req.method,
+        available_endpoints: availableEndpoints,
         ads_system_available: adsAvailable,
-        suggestion: req.originalUrl.includes('/ads/') && !adsAvailable ? 
-            'Ads system is not available. Check server configuration.' : 
-            'Check available endpoints below',
-        availableEndpoints: availableEndpoints
+        timestamp: new Date().toISOString()
     });
 });
 

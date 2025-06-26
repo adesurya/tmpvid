@@ -1,15 +1,1256 @@
-<div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <h2>Manage Users</h2>
-        <button class="btn btn-primary" onclick="alert('Add user functionality coming soon')">
-            <i class="fas fa-plus"></i>
-            Add User
-        </button>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Admin Dashboard</title>
     
-    <div style="text-align: center; padding: 50px; color: #7f8c8d;">
-        <i class="fas fa-users" style="font-size: 64px; margin-bottom: 20px; color: #bdc3c7;"></i>
-        <h3>No Users Yet</h3>
-        <p>User management coming soon</p>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 0 1.5rem;
+        }
+
+        .logo h1 {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0 1rem;
+        }
+
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: #666;
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-link i {
+            margin-right: 1rem;
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link span {
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 0;
+        }
+
+        /* User Container */
+        .user-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            min-height: 600px;
+        }
+
+        .user-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #ff6b6b, #4ecdc4);
+            background-size: 300% 100%;
+            animation: gradientFlow 3s ease infinite;
+        }
+
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* User Header */
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #666;
+            cursor: pointer;
+            margin-right: 1rem;
+        }
+
+        .user-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-title h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .user-title .title-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-title .title-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: iconShimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes iconShimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        /* Button */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #7f8c8d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .empty-state-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .empty-state-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .empty-state-icon i {
+            font-size: 4rem;
+            color: white;
+            z-index: 1;
+            animation: userPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes userPulse {
+            0%, 100% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            font-size: 2rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            max-width: 400px;
+            margin: 0 auto 2rem;
+            line-height: 1.6;
+            color: #7f8c8d;
+        }
+
+        .empty-state-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-outline:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-info:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(52, 152, 219, 0.4);
+        }
+
+        /* Coming Soon Badge */
+        .coming-soon-badge {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 10;
+            animation: badge-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badge-pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 6px 20px rgba(243, 156, 18, 0.5);
+            }
+        }
+
+        /* Overlay for mobile */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .user-container {
+                padding: 1.5rem;
+            }
+
+            .user-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 1.5rem;
+            }
+
+            .user-title {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .user-title h2 {
+                font-size: 2rem;
+            }
+
+            .empty-state {
+                padding: 2rem 1rem;
+            }
+
+            .empty-state-icon {
+                width: 100px;
+                height: 100px;
+            }
+
+            .empty-state-icon i {
+                font-size: 3rem;
+            }
+
+            .empty-state h3 {
+                font-size: 1.5rem;
+            }
+
+            .empty-state p {
+                font-size: 1rem;
+            }
+
+            .empty-state-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            .coming-soon-badge {
+                position: relative;
+                top: 0;
+                right: 0;
+                margin-bottom: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .user-title .title-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+
+            .empty-state-icon {
+                width: 80px;
+                height: 80px;
+            }
+
+            .empty-state-icon i {
+                font-size: 2.5rem;
+            }
+
+            .empty-state h3 {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Enhanced focus states */
+        .btn:focus {
+            outline: 2px solid rgba(102, 126, 234, 0.5);
+            outline-offset: 2px;
+        }
+
+        /* Smooth transitions */
+        * {
+            transition: all 0.3s ease;
+        }
+
+        /* Enhance the container with subtle animations */
+        .user-container {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Future-ready styles for user data */
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* User grid for future implementation */
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .user-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            margin: 0 auto 1rem;
+        }
+
+        .user-info h4 {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+
+        .user-info p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="logo">
+                <h1><i class="fas fa-video"></i> KlipQ</h1>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/videos" class="nav-link">
+                        <i class="fas fa-video"></i>
+                        <span>Videos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/categories" class="nav-link">
+                        <i class="fas fa-tags"></i>
+                        <span>Categories</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/series" class="nav-link">
+                        <i class="fas fa-list"></i>
+                        <span>Series</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/users" class="nav-link active">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/ads" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Advertisements</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/api-dashboard" class="nav-link">
+                        <i class="fas fa-code"></i>
+                        <span>API & RSS</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="user-container">
+                <div class="coming-soon-badge">
+                    <i class="fas fa-clock"></i>
+                    Coming Soon
+                </div>
+                
+                <div class="user-header">
+                    <div class="user-title">
+                        <button class="mobile-toggle" id="mobileToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="title-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h2>Manage Users</h2>
+                    </div>
+                    <button class="btn btn-primary" onclick="handleAddUser()">
+                        <i class="fas fa-plus"></i>
+                        Add User
+                    </button>
+                </div>
+                
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>No Users Yet</h3>
+                    <p>User management functionality is currently in development. Soon you'll be able to manage user accounts, permissions, and activity from this dashboard.</p>
+                    <div class="empty-state-actions">
+                        <button class="btn btn-primary" onclick="handleAddUser()">
+                            <i class="fas fa-plus"></i>
+                            Add First User
+                        </button>
+                        <button class="btn btn-info" onclick="showUserInfo()">
+                            <i class="fas fa-info-circle"></i>
+                            Learn More
+                        </button>
+                        <button class="btn btn-outline" onclick="showComingSoonFeatures()">
+                            <i class="fas fa-roadmap"></i>
+                            View Roadmap
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
-</div>
+
+    <script>
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing user management page...');
+            
+            // Mobile navigation
+            const mobileToggle = document.getElementById('mobileToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('mobile-visible');
+                overlay.classList.toggle('active');
+            }
+
+            mobileToggle.addEventListener('click', toggleSidebar);
+            overlay.addEventListener('click', toggleSidebar);
+
+            // Responsive handling
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('mobile-visible');
+                    overlay.classList.remove('active');
+                }
+            });
+
+            // Add smooth scrolling
+            document.documentElement.style.scrollBehavior = 'smooth';
+            
+            console.log('✅ User management page initialized');
+        });
+
+        // Handle Add User button click - keeping original alert functionality
+        function handleAddUser() {
+            alert('Add user functionality coming soon');
+        }
+
+        // Additional functions for enhanced UX
+        function showUserInfo() {
+            showNotification('User management will include features like user accounts, role permissions, activity monitoring, and user analytics.', 'info');
+        }
+
+        function showComingSoonFeatures() {
+            const features = [
+                '👤 User account creation and management',
+                '🔐 Role-based permissions system',
+                '📊 User activity analytics',
+                '📧 Email notifications and communication',
+                '🚫 User moderation and blocking',
+                '📋 User profile management'
+            ];
+            
+            showNotification('Coming Soon Features:\n\n' + features.join('\n'), 'info');
+        }
+
+        // Show notification function
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            document.querySelectorAll('.notification').forEach(n => n.remove());
+            
+            const icons = {
+                success: 'check-circle',
+                error: 'times-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            
+            // Handle multi-line messages
+            const messageLines = message.split('\n');
+            const messageHtml = messageLines.map(line => {
+                if (line.trim() === '') return '<br>';
+                return `<span style="display: block; margin: 0.25rem 0;">${line}</span>`;
+            }).join('');
+            
+            notification.innerHTML = `
+                <i class="fas fa-${icons[type] || 'info-circle'}" style="align-self: flex-start; margin-top: 0.25rem;"></i>
+                <div style="flex: 1;">${messageHtml}</div>
+            `;
+            
+            // Add notification styles
+            notification.style.cssText = `
+                position: fixed;
+                top: 2rem;
+                right: 2rem;
+                padding: 1rem 1.5rem;
+                border-radius: 15px;
+                color: white;
+                z-index: 10000;
+                display: flex;
+                align-items: flex-start;
+                gap: 0.75rem;
+                font-weight: 500;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+                animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+                backdrop-filter: blur(10px);
+                max-width: 400px;
+                min-width: 300px;
+                line-height: 1.4;
+            `;
+            
+            // Set background color based on type
+            const colors = {
+                success: 'linear-gradient(135deg, #27ae60, #2ecc71)',
+                error: 'linear-gradient(135deg, #e74c3c, #c0392b)',
+                warning: 'linear-gradient(135deg, #f39c12, #e67e22)',
+                info: 'linear-gradient(135deg, #3498db, #2980b9)'
+            };
+            
+            notification.style.background = colors[type] || colors.info;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 8 seconds (longer for multi-line messages)
+            const timeout = messageLines.length > 3 ? 10000 : 6000;
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, timeout);
+        }
+
+        // Add CSS animations for notifications
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+
+            /* Responsive notification styles */
+            @media (max-width: 768px) {
+                .notification {
+                    left: 1rem !important;
+                    right: 1rem !important;
+                    top: 1rem !important;
+                    max-width: none !important;
+                    min-width: auto !important;
+                }
+            }
+
+            /* Enhanced button interactions */
+            .btn:hover {
+                cursor: pointer;
+            }
+
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .btn:focus {
+                outline: 2px solid rgba(102, 126, 234, 0.5);
+                outline-offset: 2px;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add initial loading animation
+        window.addEventListener('load', function() {
+            const container = document.querySelector('.user-container');
+            if (container) {
+                container.style.opacity = '0';
+                container.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    container.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    container.style.opacity = '1';
+                    container.style.transform = 'translateY(0)';
+                }, 100);
+            }
+        });
+
+        // Future: Function to load users when available
+        function loadUsers() {
+            // This function will be implemented when backend user functionality is ready
+            console.log('Loading users...');
+            
+            // For now, show empty state
+            // In the future, this will fetch users from API and populate the grid
+        }
+
+        // Future: Function to render user grid
+        function renderUserGrid(userData) {
+            // This function will render user cards when data is available
+            const container = document.querySelector('.user-container');
+            const emptyState = container.querySelector('.empty-state');
+            
+            if (userData && userData.length > 0) {
+                // Hide empty state and show user grid
+                emptyState.style.display = 'none';
+                
+                // Create user stats
+                const userStats = document.createElement('div');
+                userStats.className = 'user-stats';
+                userStats.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${userData.length}</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${userData.filter(u => u.isActive).length}</div>
+                        <div class="stat-label">Active Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${userData.filter(u => u.role === 'admin').length}</div>
+                        <div class="stat-label">Administrators</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${userData.filter(u => new Date(u.lastLogin) > new Date(Date.now() - 7*24*60*60*1000)).length}</div>
+                        <div class="stat-label">Active This Week</div>
+                    </div>
+                `;
+                
+                // Create user grid
+                const userGrid = document.createElement('div');
+                userGrid.className = 'user-grid';
+                
+                userData.forEach(user => {
+                    const userCard = document.createElement('div');
+                    userCard.className = 'user-card';
+                    userCard.innerHTML = `
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="user-info">
+                            <h4>${user.name || user.username}</h4>
+                            <p><i class="fas fa-envelope"></i> ${user.email}</p>
+                            <p><i class="fas fa-user-tag"></i> ${user.role}</p>
+                            <p><i class="fas fa-calendar"></i> Joined ${new Date(user.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn btn-xs btn-info" onclick="viewUser('${user.id}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-xs btn-warning" onclick="editUser('${user.id}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                    `;
+                    userGrid.appendChild(userCard);
+                });
+                
+                container.appendChild(userStats);
+                container.appendChild(userGrid);
+            } else {
+                // Show empty state
+                emptyState.style.display = 'flex';
+            }
+        }
+
+        // Future user management functions
+        function viewUser(userId) {
+            showNotification(`Viewing user details for ID: ${userId}`, 'info');
+        }
+
+        function editUser(userId) {
+            showNotification(`Editing user with ID: ${userId}`, 'info');
+        }
+
+        // Enhanced user management features for future implementation
+        function exportUsers() {
+            showNotification('Exporting user data to CSV...', 'info');
+        }
+
+        function importUsers() {
+            showNotification('User import functionality coming soon', 'info');
+        }
+
+        function sendBulkEmail() {
+            showNotification('Bulk email functionality coming soon', 'info');
+        }
+
+        // Search and filter functions for future use
+        function searchUsers(query) {
+            console.log('Searching users:', query);
+            // Future implementation
+        }
+
+        function filterUsers(criteria) {
+            console.log('Filtering users:', criteria);
+            // Future implementation
+        }
+
+        // User analytics functions
+        function loadUserAnalytics() {
+            console.log('Loading user analytics...');
+            // Future implementation
+        }
+
+        // Enhanced error handling
+        window.addEventListener('error', function(e) {
+            console.error('User management error:', e.error);
+        });
+
+        // Performance monitoring
+        window.addEventListener('load', function() {
+            const loadTime = performance.now();
+            console.log(`User management page loaded in ${Math.round(loadTime)}ms`);
+        });
+
+        // Add keyboard shortcuts for future enhancement
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + N for new user
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                handleAddUser();
+            }
+            
+            // Ctrl/Cmd + F for search (future implementation)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                showNotification('User search functionality coming soon', 'info');
+            }
+        });
+
+        // Add progressive enhancement for better UX
+        function enhanceUserExperience() {
+            // Add loading states
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    if (!this.disabled) {
+                        const originalContent = this.innerHTML;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                        this.disabled = true;
+                        
+                        // Re-enable after delay (simulating API call)
+                        setTimeout(() => {
+                            this.innerHTML = originalContent;
+                            this.disabled = false;
+                        }, 1000);
+                    }
+                });
+            });
+        }
+
+        // Initialize enhanced features
+        setTimeout(enhanceUserExperience, 1000);
+
+        // Add tooltips for better UX
+        function addTooltips() {
+            const tooltipElements = [
+                { selector: '.coming-soon-badge', text: 'User management features are in active development' },
+                { selector: '.title-icon', text: 'User Management Dashboard' },
+                { selector: '.btn-primary', text: 'Add a new user to the system' }
+            ];
+
+            tooltipElements.forEach(({ selector, text }) => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.setAttribute('title', text);
+                }
+            });
+        }
+
+        // Initialize tooltips
+        setTimeout(addTooltips, 500);
+
+        // Add accessibility improvements
+        function improveAccessibility() {
+            // Add ARIA labels
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.setAttribute('aria-label', 'User Management Dashboard');
+            }
+
+            // Add focus management
+            const firstFocusableElement = document.querySelector('.btn-primary');
+            if (firstFocusableElement) {
+                firstFocusableElement.setAttribute('tabindex', '0');
+            }
+
+            // Add screen reader support
+            const emptyState = document.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.setAttribute('role', 'status');
+                emptyState.setAttribute('aria-live', 'polite');
+            }
+        }
+
+        // Initialize accessibility improvements
+        setTimeout(improveAccessibility, 200);
+
+        // Add animation observers for better performance
+        function addAnimationObservers() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.animationPlayState = 'running';
+                    } else {
+                        entry.target.style.animationPlayState = 'paused';
+                    }
+                });
+            }, observerOptions);
+
+            // Observe animated elements
+            const animatedElements = document.querySelectorAll('.empty-state-icon, .coming-soon-badge, .title-icon');
+            animatedElements.forEach(el => observer.observe(el));
+        }
+
+        // Initialize animation observers
+        setTimeout(addAnimationObservers, 1500);
+
+        // Add print styles for better printing experience
+        const printStyles = document.createElement('style');
+        printStyles.textContent = `
+            @media print {
+                .sidebar, .mobile-toggle, .overlay, .btn, .coming-soon-badge {
+                    display: none !important;
+                }
+                
+                .main-content {
+                    margin-left: 0 !important;
+                    width: 100% !important;
+                }
+                
+                .user-container {
+                    box-shadow: none !important;
+                    border: 1px solid #ccc !important;
+                }
+                
+                .empty-state-icon {
+                    background: #f0f0f0 !important;
+                }
+                
+                .user-title h2 {
+                    color: #000 !important;
+                }
+            }
+        `;
+        document.head.appendChild(printStyles);
+
+        // Add data persistence for user preferences (future enhancement)
+        function saveUserPreferences() {
+            // This will save user dashboard preferences when implemented
+            console.log('Saving user preferences...');
+        }
+
+        function loadUserPreferences() {
+            // This will load user dashboard preferences when implemented
+            console.log('Loading user preferences...');
+        }
+
+        // Initialize preference management
+        setTimeout(() => {
+            loadUserPreferences();
+        }, 100);
+
+        // Add beforeunload event to save preferences
+        window.addEventListener('beforeunload', saveUserPreferences);
+
+        // Add service worker registration for future PWA features
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // Future PWA implementation
+                console.log('Service Worker support detected');
+            });
+        }
+
+        // Add connection status monitoring
+        function monitorConnection() {
+            window.addEventListener('online', function() {
+                showNotification('Connection restored', 'success');
+            });
+
+            window.addEventListener('offline', function() {
+                showNotification('Connection lost. Some features may be limited.', 'warning');
+            });
+        }
+
+        // Initialize connection monitoring
+        monitorConnection();
+
+        console.log('🎉 User management page fully initialized with all enhancements');
+    </script>
+</body>
+</html>

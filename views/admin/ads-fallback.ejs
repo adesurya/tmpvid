@@ -1,341 +1,204 @@
-<!-- views/admin/ads-fallback.ejs -->
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <!-- Page Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0 text-gray-800">
-                    <i class="fas fa-ad text-warning"></i>
-                    <%= title %>
-                </h1>
-            </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - System Error</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+        .error-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #dc3545;
+        }
+        .error-title {
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #dc3545;
+        }
+        .error-message {
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #6c757d;
+        }
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 10px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .debug-info {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        .status-check {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e9ecef;
+            border-radius: 6px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        .status-ok {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .status-error {
+            color: #dc3545;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">⚠️</div>
+        <h1 class="error-title"><%= title %></h1>
+        <p class="error-message">
+            <%= error %>
+        </p>
 
-            <!-- Setup Required Alert -->
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Setup Required</h4>
-                <p class="mb-0"><%= error %></p>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+        <% if (typeof instructions !== 'undefined' && instructions && instructions.length > 0) { %>
+        <div class="instructions">
+            <h3>🔧 How to Fix This Issue:</h3>
+            <ul>
+                <% instructions.forEach(function(instruction) { %>
+                <li><%= instruction %></li>
+                <% }); %>
+            </ul>
+        </div>
+        <% } %>
 
-            <!-- Setup Instructions Card -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-tools"></i>
-                        Setup Instructions
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-3">
-                        To enable the advertisement management system, please complete the following steps:
-                    </p>
-                    
-                    <ol class="list-group list-group-numbered">
-                        <% instructions.forEach((instruction, index) => { %>
-                        <li class="list-group-item d-flex justify-content-between align-items-start">
-                            <div class="ms-2 me-auto">
-                                <div class="fw-bold">Step <%= index + 1 %></div>
-                                <%= instruction %>
-                            </div>
-                            <span class="badge bg-primary rounded-pill">
-                                <i class="fas fa-chevron-right"></i>
-                            </span>
-                        </li>
-                        <% }); %>
-                    </ol>
-
-                    <div class="mt-4">
-                        <button class="btn btn-primary" onclick="checkSystemStatus()">
-                            <i class="fas fa-sync-alt"></i>
-                            Check System Status
-                        </button>
-                        <button class="btn btn-success" onclick="runMigration()">
-                            <i class="fas fa-database"></i>
-                            Run Database Migration
-                        </button>
-                    </div>
-                </div>
+        <div class="status-check">
+            <h3>🔍 System Status Check:</h3>
+            <div class="status-item">
+                <span>Advertisement Controller</span>
+                <span class="status-error">❌ Not Available</span>
             </div>
-
-            <!-- System Status Card -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-info">
-                        <i class="fas fa-heartbeat"></i>
-                        System Status
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div id="systemStatus">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2 text-muted">Click "Check System Status" to verify setup</p>
-                        </div>
-                    </div>
-                </div>
+            <div class="status-item">
+                <span>Advertisement Model</span>
+                <span class="status-error">❌ Not Available</span>
             </div>
-
-            <!-- Quick Start Guide -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-success">
-                        <i class="fas fa-rocket"></i>
-                        Quick Start Guide
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="card border-left-primary h-100">
-                                <div class="card-body">
-                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                        Step 1
-                                    </div>
-                                    <div class="h6 mb-0 font-weight-bold text-gray-800">
-                                        Create Controller
-                                    </div>
-                                    <div class="text-muted small mt-2">
-                                        Copy the adController.js file to src/controllers/
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-left-warning h-100">
-                                <div class="card-body">
-                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                        Step 2
-                                    </div>
-                                    <div class="h6 mb-0 font-weight-bold text-gray-800">
-                                        Create Model
-                                    </div>
-                                    <div class="text-muted small mt-2">
-                                        Copy the Ad.js model file to src/models/
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-left-success h-100">
-                                <div class="card-body">
-                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                        Step 3
-                                    </div>
-                                    <div class="h6 mb-0 font-weight-bold text-gray-800">
-                                        Run Migration
-                                    </div>
-                                    <div class="text-muted small mt-2">
-                                        Create database tables and restart server
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="status-item">
+                <span>Database Connection</span>
+                <span class="status-error">❌ Unknown</span>
             </div>
-
-            <!-- Health Check Results -->
-            <div class="card shadow mb-4" id="healthCheckCard" style="display: none;">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-info">
-                        <i class="fas fa-stethoscope"></i>
-                        Health Check Results
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div id="healthCheckResults"></div>
-                </div>
+            <div class="status-item">
+                <span>Upload Directory</span>
+                <span class="status-error">❌ Unknown</span>
             </div>
+        </div>
+
+        <div class="debug-info">
+            <strong>🐛 Debug Information:</strong><br>
+            Timestamp: <%= new Date().toISOString() %><br>
+            User Agent: <%= typeof req !== 'undefined' ? req.get('User-Agent') : 'Unknown' %><br>
+            Request URL: <%= typeof req !== 'undefined' ? req.originalUrl : 'Unknown' %><br>
+            Node Version: <%= process.version %><br>
+            <br>
+            <strong>Common Solutions:</strong><br>
+            1. Check if src/controllers/adController.js exists<br>
+            2. Check if src/models/Ad.js exists<br>
+            3. Verify database connection in src/config/database.js<br>
+            4. Run: npm install<br>
+            5. Restart the server<br>
+        </div>
+
+        <div class="actions">
+            <a href="/admin" class="btn btn-primary">← Back to Admin Dashboard</a>
+            <a href="/system/status" class="btn btn-secondary">System Status</a>
+            <% if (process.env.NODE_ENV !== 'production') { %>
+            <a href="/debug/ads-health" class="btn btn-secondary">Debug Info</a>
+            <% } %>
         </div>
     </div>
-</div>
 
-<!-- JavaScript for System Status Checking -->
-<script>
-function showNotification(message, type = 'info') {
-    const alertClass = `alert-${type}`;
-    const iconClass = type === 'success' ? 'fa-check-circle' : 
-                     type === 'danger' ? 'fa-exclamation-circle' : 
-                     type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
-    
-    const notification = `
-        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            <i class="fas ${iconClass}"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    const container = document.querySelector('.container-fluid');
-    container.insertAdjacentHTML('afterbegin', notification);
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        const alert = container.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, 5000);
-}
-
-async function checkSystemStatus() {
-    try {
-        const response = await fetch('/api/admin/ads/status');
-        const result = await response.json();
-        
-        const statusContainer = document.getElementById('systemStatus');
-        const healthCard = document.getElementById('healthCheckCard');
-        const healthResults = document.getElementById('healthCheckResults');
-        
-        if (result.success) {
-            const status = result.data;
-            
-            statusContainer.innerHTML = `
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <i class="fas fa-code ${status.controller_loaded ? 'text-success' : 'text-danger'} fa-2x"></i>
-                            <div class="mt-2">
-                                <strong>Controller</strong><br>
-                                <span class="${status.controller_loaded ? 'text-success' : 'text-danger'}">
-                                    ${status.controller_loaded ? 'Loaded' : 'Missing'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <i class="fas fa-database ${status.model_loaded ? 'text-success' : 'text-danger'} fa-2x"></i>
-                            <div class="mt-2">
-                                <strong>Model</strong><br>
-                                <span class="${status.model_loaded ? 'text-success' : 'text-danger'}">
-                                    ${status.model_loaded ? 'Loaded' : 'Missing'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <i class="fas fa-eye ${status.views_exist ? 'text-success' : 'text-danger'} fa-2x"></i>
-                            <div class="mt-2">
-                                <strong>Views</strong><br>
-                                <span class="${status.views_exist ? 'text-success' : 'text-danger'}">
-                                    ${status.views_exist ? 'Found' : 'Missing'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <i class="fas fa-folder ${status.upload_directory ? 'text-success' : 'text-danger'} fa-2x"></i>
-                            <div class="mt-2">
-                                <strong>Upload Dir</strong><br>
-                                <span class="${status.upload_directory ? 'text-success' : 'text-danger'}">
-                                    ${status.upload_directory ? 'Ready' : 'Missing'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 text-center">
-                    <div class="badge ${status.fully_configured ? 'bg-success' : 'bg-warning'} fs-6">
-                        ${status.fully_configured ? 'System Ready' : 'Setup Required'}
-                    </div>
-                </div>
-            `;
-            
-            if (status.fully_configured) {
-                showNotification('🎉 Ads system is fully configured! You can now refresh the page.', 'success');
-            } else {
-                showNotification('⚠️ Some components are missing. Please complete the setup.', 'warning');
-            }
-            
-        } else {
-            statusContainer.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Failed to check system status: ${result.message}
-                </div>
-            `;
-        }
-        
-        // Show health check card
-        healthCard.style.display = 'block';
-        
-    } catch (error) {
-        console.error('Error checking system status:', error);
-        showNotification('Failed to check system status: ' + error.message, 'danger');
-    }
-}
-
-async function runMigration() {
-    try {
-        showNotification('🔧 Running database migration...', 'info');
-        
-        const response = await fetch('/api/admin/ads/migrate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('✅ Database migration completed successfully!', 'success');
-            // Auto-check status after migration
-            setTimeout(checkSystemStatus, 1000);
-        } else {
-            showNotification('❌ Migration failed: ' + result.message, 'danger');
-        }
-        
-    } catch (error) {
-        console.error('Error running migration:', error);
-        showNotification('Failed to run migration: ' + error.message, 'danger');
-    }
-}
-
-// Auto-check status on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Check system status after a short delay
-    setTimeout(checkSystemStatus, 500);
-});
-</script>
-
-<style>
-.border-left-primary {
-    border-left: 0.25rem solid #4e73df !important;
-}
-
-.border-left-warning {
-    border-left: 0.25rem solid #f6c23e !important;
-}
-
-.border-left-success {
-    border-left: 0.25rem solid #1cc88a !important;
-}
-
-.card {
-    transition: all 0.3s;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-
-.list-group-numbered {
-    counter-reset: section;
-}
-
-.list-group-numbered li {
-    counter-increment: section;
-}
-
-.spinner-border {
-    width: 3rem;
-    height: 3rem;
-}
-</style>
+    <script>
+        // Auto-refresh every 10 seconds to check if system comes back online
+        setTimeout(() => {
+            console.log('Checking if ads system is back online...');
+            fetch('/api/ads/status')
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Ads system is back online, reloading...');
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    console.log('Ads system still not available');
+                });
+        }, 10000);
+    </script>
+</body>
+</html>

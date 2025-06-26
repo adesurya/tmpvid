@@ -1,15 +1,1676 @@
-<div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <h2>Manage Series</h2>
-        <button class="btn btn-primary" onclick="alert('Add series functionality coming soon')">
-            <i class="fas fa-plus"></i>
-            Add Series
-        </button>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Series Management - Admin Dashboard</title>
     
-    <div style="text-align: center; padding: 50px; color: #7f8c8d;">
-        <i class="fas fa-list" style="font-size: 64px; margin-bottom: 20px; color: #bdc3c7;"></i>
-        <h3>No Series Yet</h3>
-        <p>Create your first video series to organize content</p>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 0 1.5rem;
+        }
+
+        .logo h1 {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0 1rem;
+        }
+
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: #666;
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-link i {
+            margin-right: 1rem;
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link span {
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 0;
+        }
+
+        /* Series Container */
+        .series-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            min-height: 600px;
+        }
+
+        .series-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #ff6b6b, #4ecdc4);
+            background-size: 300% 100%;
+            animation: gradientFlow 3s ease infinite;
+        }
+
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* Series Header */
+        .series-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #666;
+            cursor: pointer;
+            margin-right: 1rem;
+        }
+
+        .series-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .series-title h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .series-title .title-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        /* Button */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        /* Series List */
+        .series-list {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .series-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .series-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .series-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .series-info {
+            flex: 1;
+        }
+
+        .series-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .series-description {
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .series-meta {
+            font-size: 0.8rem;
+            color: #95a5a6;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .series-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #7f8c8d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .empty-state-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #bdc3c7, #95a5a6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .empty-state-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .empty-state-icon i {
+            font-size: 4rem;
+            color: white;
+            z-index: 1;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+        }
+
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            font-size: 2rem;
+            color: #95a5a6;
+            font-weight: 600;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            max-width: 400px;
+            margin: 0 auto;
+            line-height: 1.6;
+            color: #a0a0a0;
+        }
+
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #7f8c8d;
+        }
+
+        .loading-state-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-state-icon i {
+            font-size: 2rem;
+            color: white;
+        }
+
+        /* Error State */
+        .error-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #e74c3c;
+        }
+
+        .error-state-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+        }
+
+        .error-state-icon i {
+            font-size: 3rem;
+            color: white;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+            animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .modal-header {
+            padding: 2rem 2rem 1rem;
+        }
+
+        .modal-header h3 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 0 2rem 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-control.textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            padding: 0 2rem 2rem;
+        }
+
+        .btn-secondary {
+            background: rgba(248, 249, 250, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(240, 241, 242, 0.9);
+            transform: translateY(-2px);
+        }
+
+        /* Overlay for mobile */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Category Badge */
+        .category-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Episode Count Badge */
+        .episode-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: linear-gradient(135deg, #ff6b6b, #ff5252);
+            color: white;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .series-container {
+                padding: 1.5rem;
+            }
+
+            .series-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 1.5rem;
+            }
+
+            .series-title {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .series-title h2 {
+                font-size: 2rem;
+            }
+
+            .series-card {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .series-meta {
+                justify-content: center;
+            }
+
+            .modal-content {
+                margin: 1rem;
+                max-width: none;
+            }
+
+            .modal-header,
+            .modal-body,
+            .modal-footer {
+                padding-left: 1.5rem;
+                padding-right: 1.5rem;
+            }
+
+            .modal-footer {
+                flex-direction: column-reverse;
+            }
+
+            .empty-state {
+                padding: 2rem 1rem;
+            }
+
+            .empty-state-icon {
+                width: 100px;
+                height: 100px;
+            }
+
+            .empty-state-icon i {
+                font-size: 3rem;
+            }
+
+            .empty-state h3 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .series-title .title-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+
+            .empty-state-icon {
+                width: 80px;
+                height: 80px;
+            }
+
+            .empty-state-icon i {
+                font-size: 2.5rem;
+            }
+
+            .empty-state h3 {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Animations */
+        .series-card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .series-card:nth-child(1) { animation-delay: 0.1s; }
+        .series-card:nth-child(2) { animation-delay: 0.2s; }
+        .series-card:nth-child(3) { animation-delay: 0.3s; }
+        .series-card:nth-child(4) { animation-delay: 0.4s; }
+        .series-card:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Enhanced focus states */
+        .btn:focus,
+        .form-control:focus {
+            outline: 2px solid rgba(102, 126, 234, 0.5);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="logo">
+                <h1><i class="fas fa-video"></i> KlipQ</h1>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/videos" class="nav-link">
+                        <i class="fas fa-video"></i>
+                        <span>Videos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/categories" class="nav-link">
+                        <i class="fas fa-tags"></i>
+                        <span>Categories</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/series" class="nav-link active">
+                        <i class="fas fa-list"></i>
+                        <span>Series</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/users" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/ads" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Advertisements</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/api-dashboard" class="nav-link">
+                        <i class="fas fa-code"></i>
+                        <span>API & RSS</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="series-container">
+                <div class="series-header">
+                    <div class="series-title">
+                        <button class="mobile-toggle" id="mobileToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="title-icon">
+                            <i class="fas fa-list"></i>
+                        </div>
+                        <h2>Manage Series</h2>
+                    </div>
+                    <button id="addSeriesBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Add Series
+                    </button>
+                </div>
+                
+                <div id="seriesList" class="series-list">
+                    <div class="loading-state">
+                        <div class="loading-state-icon">
+                            <i class="fas fa-list"></i>
+                        </div>
+                        <h3>Loading Series...</h3>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
-</div>
+
+    <!-- Add Series Modal -->
+    <div id="addSeriesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Series</h3>
+            </div>
+            <form id="addSeriesForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Title: *</label>
+                        <input type="text" name="title" required class="form-control" placeholder="Enter series title">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description:</label>
+                        <textarea name="description" class="form-control textarea" placeholder="Enter series description (optional)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Thumbnail URL:</label>
+                        <input type="url" name="thumbnail" class="form-control" placeholder="https://example.com/thumbnail.jpg (optional)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category:</label>
+                        <select name="category_id" class="form-control" id="categorySelect">
+                            <option value="">Select a category (optional)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Series</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let categoriesData = [];
+        let seriesData = [];
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing series management page...');
+            
+            // Mobile navigation
+            const mobileToggle = document.getElementById('mobileToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('mobile-visible');
+                overlay.classList.toggle('active');
+            }
+
+            mobileToggle.addEventListener('click', toggleSidebar);
+            overlay.addEventListener('click', toggleSidebar);
+
+            // Responsive handling
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('mobile-visible');
+                    overlay.classList.remove('active');
+                }
+            });
+            
+            // Add series button
+            document.getElementById('addSeriesBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔧 Add series button clicked');
+                showAddSeriesForm();
+            });
+            
+            // Cancel button
+            document.getElementById('cancelBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔧 Cancel button clicked');
+                hideAddSeriesForm();
+            });
+            
+            // Close modal when clicking outside
+            document.getElementById('addSeriesModal').addEventListener('click', function(e) {
+                console.log('🔧 Modal click detected:', e.target.className);
+                
+                // Only close if clicking on the modal backdrop, not the content
+                if (e.target === this) {
+                    console.log('🔧 Closing modal - clicked outside');
+                    hideAddSeriesForm();
+                } else {
+                    console.log('🔧 Not closing - clicked inside modal content');
+                }
+            });
+            
+            // Form submit
+            document.getElementById('addSeriesForm').addEventListener('submit', handleAddSeries);
+            
+            // Load data on page load
+            loadInitialData();
+            
+            console.log('✅ Series management page initialized');
+        });
+
+        async function loadInitialData() {
+            try {
+                // Load categories for dropdown
+                await loadCategories();
+                
+                // Load series list
+                await loadSeries();
+            } catch (error) {
+                console.error('Failed to load initial data:', error);
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                console.log('Loading categories for dropdown...');
+                
+                const response = await fetch('/api/categories');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    categoriesData = data.data;
+                    populateCategorySelect();
+                    console.log(`✅ Loaded ${categoriesData.length} categories`);
+                } else {
+                    console.warn('No categories found');
+                }
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        function populateCategorySelect() {
+            const select = document.getElementById('categorySelect');
+            select.innerHTML = '<option value="">Select a category (optional)</option>';
+            
+            categoriesData.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Add enhanced debugging and modal state management
+        let modalState = {
+            isOpen: false,
+            isSubmitting: false
+        };
+
+        // Enhanced modal management
+        function showAddSeriesForm() {
+            console.log('🔧 Showing add series form...');
+            
+            if (modalState.isOpen) {
+                console.log('⚠️ Modal already open, ignoring request');
+                return;
+            }
+            
+            const modal = document.getElementById('addSeriesModal');
+            if (modal) {
+                modalState.isOpen = true;
+                modal.style.display = 'flex';
+                modal.classList.add('show');
+                
+                // Focus on first input after modal is shown
+                setTimeout(() => {
+                    const firstInput = modal.querySelector('input[name="title"]');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, 100);
+                
+                // Prevent body scroll when modal is open
+                document.body.style.overflow = 'hidden';
+                
+                console.log('✅ Modal shown successfully, state:', modalState);
+            } else {
+                console.error('❌ Modal element not found');
+            }
+        }
+
+        function hideAddSeriesForm() {
+            console.log('🔧 Hiding add series form...');
+            
+            if (!modalState.isOpen) {
+                console.log('⚠️ Modal already closed, ignoring request');
+                return;
+            }
+            
+            const modal = document.getElementById('addSeriesModal');
+            if (modal) {
+                modalState.isOpen = false;
+                modal.style.display = 'none';
+                modal.classList.remove('show');
+                
+                // Restore body scroll
+                document.body.style.overflow = '';
+                
+                // Reset form only if not submitting
+                if (!modalState.isSubmitting) {
+                    const form = document.getElementById('addSeriesForm');
+                    if (form) {
+                        form.reset();
+                    }
+                }
+                
+                console.log('✅ Modal hidden successfully, state:', modalState);
+            }
+        }
+
+        async function handleAddSeries(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
+            
+            console.log('🔧 Form submit started...');
+            
+            if (modalState.isSubmitting) {
+                console.log('⚠️ Already submitting, ignoring duplicate submission');
+                return;
+            }
+            
+            modalState.isSubmitting = true;
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            // Convert empty strings to null for proper handling
+            if (!data.category_id) {
+                data.category_id = null;
+            }
+            if (!data.thumbnail) {
+                data.thumbnail = null;
+            }
+            if (!data.description) {
+                data.description = null;
+            }
+            
+            console.log('Adding series:', data);
+            
+            // Add loading state to submit button
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/series', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                console.log('Create response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Create error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Create result:', result);
+                
+                if (result.success) {
+                    showNotification('Series added successfully!', 'success');
+                    
+                    // Reset form before hiding
+                    const form = document.getElementById('addSeriesForm');
+                    if (form) {
+                        form.reset();
+                    }
+                    
+                    hideAddSeriesForm();
+                    await loadSeries(); // Wait for series to reload
+                } else {
+                    showNotification('Error: ' + (result.message || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Add series error:', error);
+                showNotification('Failed to add series: ' + error.message, 'error');
+            } finally {
+                // Restore button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                modalState.isSubmitting = false;
+            }
+        }
+
+        async function deleteSeries(id) {
+            if (!confirm('Are you sure you want to delete this series? This will also affect any videos in this series.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/series/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Series deleted successfully!', 'success');
+                    loadSeries();
+                } else {
+                    showNotification('Error: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Failed to delete series', 'error');
+            }
+        }
+
+        async function loadSeries() {
+            try {
+                console.log('Loading series from /api/series...');
+                
+                const response = await fetch('/api/series');
+                console.log('Response status:', response.status);
+                console.log('Response content-type:', response.headers.get('content-type'));
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Response error:', errorText.substring(0, 200));
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const responseText = await response.text();
+                    console.error('Non-JSON response:', responseText.substring(0, 200));
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                const data = await response.json();
+                console.log('Series data:', data);
+                
+                const seriesDiv = document.getElementById('seriesList');
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    seriesData = data.data;
+                    seriesDiv.innerHTML = data.data.map((series, index) => `
+                        <div class="series-card" style="animation-delay: ${index * 0.1}s">
+                            <div class="series-info">
+                                <div class="series-name">${series.title}</div>
+                                <div class="series-description">${series.description || 'No description'}</div>
+                                <div class="series-meta">
+                                    <span><i class="fas fa-hashtag"></i> ID: ${series.id}</span>
+                                    <span><i class="fas fa-link"></i> Slug: ${series.slug}</span>
+                                    <span class="episode-badge"><i class="fas fa-play-circle"></i> ${series.total_episodes || 0} episodes</span>
+                                    ${series.category_name ? `<span class="category-badge"><i class="fas fa-tag"></i> ${series.category_name}</span>` : ''}
+                                    ${series.thumbnail ? `<span><i class="fas fa-image"></i> Has thumbnail</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="series-actions">
+                                <button class="btn btn-danger delete-btn" data-id="${series.id}" title="Delete Series">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    // Add event listeners for delete buttons
+                    document.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            deleteSeries(this.dataset.id);
+                        });
+                    });
+                } else {
+                    seriesDiv.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-list"></i>
+                            </div>
+                            <h3>No Series Yet</h3>
+                            <p>Create your first series to organize videos into collections</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Load series error:', error);
+                document.getElementById('seriesList').innerHTML = `
+                    <div class="error-state">
+                        <div class="error-state-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3>Failed to Load Series</h3>
+                        <p>Error: ${error.message}</p>
+                        <button id="retryBtn" class="btn btn-primary" style="margin-top: 1rem;">
+                            <i class="fas fa-sync-alt"></i> Retry
+                        </button>
+                    </div>
+                `;
+                
+                // Add retry event listener
+                document.getElementById('retryBtn')?.addEventListener('click', loadSeries);
+            }
+        }
+
+        // Show notification function
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            document.querySelectorAll('.notification').forEach(n => n.remove());
+            
+            const icons = {
+                success: 'check-circle',
+                error: 'times-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${icons[type] || 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            // Add notification styles
+            notification.style.cssText = `
+                position: fixed;
+                top: 2rem;
+                right: 2rem;
+                padding: 1rem 1.5rem;
+                border-radius: 15px;
+                color: white;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                font-weight: 600;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+                animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+                backdrop-filter: blur(10px);
+                max-width: 400px;
+                min-width: 300px;
+            `;
+            
+            // Set background color based on type
+            const colors = {
+                success: 'linear-gradient(135deg, #27ae60, #2ecc71)',
+                error: 'linear-gradient(135deg, #e74c3c, #c0392b)',
+                warning: 'linear-gradient(135deg, #f39c12, #e67e22)',
+                info: 'linear-gradient(135deg, #3498db, #2980b9)'
+            };
+            
+            notification.style.background = colors[type] || colors.info;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // Add CSS animations for notifications
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+
+            /* Responsive notification styles */
+            @media (max-width: 768px) {
+                .notification {
+                    left: 1rem !important;
+                    right: 1rem !important;
+                    top: 1rem !important;
+                    max-width: none !important;
+                    min-width: auto !important;
+                }
+            }
+
+            /* Enhanced button loading state */
+            .btn.loading {
+                opacity: 0.7;
+                cursor: not-allowed;
+                transform: none !important;
+            }
+
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none !important;
+            }
+
+            /* Enhanced form validation styles */
+            .form-control:invalid {
+                border-color: #e74c3c;
+                box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+            }
+
+            .form-control:valid {
+                border-color: #27ae60;
+            }
+
+            /* Series card animations */
+            .series-card {
+                opacity: 0;
+            }
+
+            .series-card.animate {
+                animation: fadeInUp 0.6s ease forwards;
+            }
+
+            /* Loading spinner for buttons */
+            .btn .fa-spinner {
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+
+            /* Enhanced modal animations and fix for disappearing issue */
+            .modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 2000;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                backdrop-filter: blur(8px);
+                padding: 1rem;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            .modal.show {
+                display: flex !important;
+                opacity: 1;
+            }
+
+            .modal-content {
+                transform: translateY(-50px) scale(0.9);
+                opacity: 0;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                pointer-events: auto; /* Ensure modal content can receive events */
+            }
+
+            .modal.show .modal-content {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+
+            /* Prevent modal from closing unexpectedly */
+            .modal-content * {
+                pointer-events: auto;
+            }
+
+            /* Better button focus and active states */
+            .btn:focus {
+                outline: 2px solid rgba(102, 126, 234, 0.5);
+                outline-offset: 2px;
+                z-index: 1;
+            }
+
+            .btn:active {
+                transform: translateY(-1px) scale(0.98);
+                transition: transform 0.1s ease;
+            }
+
+            /* Prevent form submission issues */
+            .modal form {
+                pointer-events: auto;
+            }
+
+            .modal form * {
+                pointer-events: auto;
+            }
+
+            /* Keyboard navigation styles */
+            .btn:focus-visible,
+            .form-control:focus-visible {
+                outline: 2px solid #667eea;
+                outline-offset: 2px;
+            }
+
+            /* Better hover states for mobile */
+            @media (hover: hover) {
+                .series-card:hover .series-name {
+                    color: #667eea;
+                }
+                
+                .series-card:hover .series-meta span {
+                    color: #667eea;
+                }
+            }
+
+            /* Touch feedback for mobile */
+            @media (hover: none) {
+                .series-card:active {
+                    transform: scale(0.98);
+                }
+                
+                .btn:active {
+                    transform: scale(0.95);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + N for new series
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                showAddSeriesForm();
+            }
+            
+            // Escape to close modal
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('addSeriesModal');
+                if (modal && modal.style.display === 'flex') {
+                    console.log('🔧 Closing modal with Escape key');
+                    hideAddSeriesForm();
+                }
+            }
+            
+            // Ctrl/Cmd + R to refresh series
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                loadSeries();
+                loadCategories();
+                showNotification('Series refreshed', 'info');
+            }
+        });
+
+        // Add initial loading animation
+        window.addEventListener('load', function() {
+            const container = document.querySelector('.series-container');
+            if (container) {
+                container.style.opacity = '0';
+                container.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    container.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    container.style.opacity = '1';
+                    container.style.transform = 'translateY(0)';
+                }, 100);
+            }
+        });
+
+        // Add smooth scrolling
+        document.documentElement.style.scrollBehavior = 'smooth';
+
+        // Add progressive enhancement for better UX
+        function enhanceSeriesExperience() {
+            // Add loading states to all buttons
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                if (!button.id && !button.classList.contains('delete-btn')) {
+                    button.addEventListener('click', function() {
+                        if (!this.disabled) {
+                            const originalContent = this.innerHTML;
+                            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                            this.disabled = true;
+                            
+                            // Re-enable after delay (will be overridden by actual operations)
+                            setTimeout(() => {
+                                this.innerHTML = originalContent;
+                                this.disabled = false;
+                            }, 2000);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Initialize enhanced features
+        setTimeout(enhanceSeriesExperience, 1000);
+
+        // Add accessibility improvements
+        function improveAccessibility() {
+            // Add ARIA labels
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.setAttribute('aria-label', 'Series Management Dashboard');
+            }
+
+            // Add focus management
+            const addButton = document.getElementById('addSeriesBtn');
+            if (addButton) {
+                addButton.setAttribute('tabindex', '0');
+            }
+
+            // Add screen reader support for dynamic content
+            const seriesList = document.getElementById('seriesList');
+            if (seriesList) {
+                seriesList.setAttribute('aria-live', 'polite');
+                seriesList.setAttribute('aria-label', 'Series list');
+            }
+
+            // Add modal accessibility
+            const modal = document.getElementById('addSeriesModal');
+            if (modal) {
+                modal.setAttribute('role', 'dialog');
+                modal.setAttribute('aria-labelledby', 'modal-title');
+                modal.setAttribute('aria-modal', 'true');
+            }
+        }
+
+        // Initialize accessibility improvements
+        setTimeout(improveAccessibility, 200);
+
+        // Add connection monitoring
+        function monitorConnection() {
+            window.addEventListener('online', function() {
+                showNotification('Connection restored', 'success');
+                loadSeries();
+                loadCategories();
+            });
+
+            window.addEventListener('offline', function() {
+                showNotification('Connection lost. Some features may be limited.', 'warning');
+            });
+        }
+
+        // Initialize connection monitoring
+        monitorConnection();
+
+        // Add performance monitoring
+        window.addEventListener('load', function() {
+            const loadTime = performance.now();
+            console.log(`Series management page loaded in ${Math.round(loadTime)}ms`);
+        });
+
+        // Add error boundary for unhandled errors
+        window.addEventListener('error', function(e) {
+            console.error('Unhandled error:', e.error);
+            showNotification('An unexpected error occurred', 'error');
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e.reason);
+            showNotification('An unexpected error occurred', 'error');
+        });
+
+        // Add auto-refresh functionality
+        let autoRefreshInterval;
+        
+        function startAutoRefresh() {
+            // Refresh series every 30 seconds
+            autoRefreshInterval = setInterval(() => {
+                loadSeries();
+            }, 30000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Start auto-refresh when page is visible, stop when hidden
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+            }
+        });
+
+        // Start auto-refresh initially
+        startAutoRefresh();
+
+        // Add form validation enhancements
+        function enhanceFormValidation() {
+            const form = document.getElementById('addSeriesForm');
+            const titleInput = form.querySelector('input[name="title"]');
+            const thumbnailInput = form.querySelector('input[name="thumbnail"]');
+            
+            titleInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length < 2) {
+                    this.setCustomValidity('Series title must be at least 2 characters long');
+                } else if (value.length > 200) {
+                    this.setCustomValidity('Series title must be less than 200 characters');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+
+            thumbnailInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value && !isValidUrl(value)) {
+                    this.setCustomValidity('Please enter a valid URL');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+        }
+
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        // Initialize form validation
+        setTimeout(enhanceFormValidation, 500);
+
+        console.log('🎉 Series management page fully initialized with all enhancements');
+    </script>
+</body>
+</html>

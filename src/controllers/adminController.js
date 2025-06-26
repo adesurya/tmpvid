@@ -1433,51 +1433,169 @@ static async updateSettings(req, res) {
         }
     }
 
-    // Login handler
-    static async login(req, res) {
+static async login(req, res) {
         try {
-            console.log('AdminController.login called with body:', req.body);
+            console.log('🔐 AdminController.login called');
+            console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+            console.log('🔗 Session available:', !!req.session);
+            console.log('💾 Flash available:', typeof req.flash === 'function');
             
-            // FIXED: Check if req.body exists and destructure safely
-            const { username, password } = req.body || {};
+            // Ensure User model is initialized
+            try {
+                await User.initialize();
+                console.log('✅ User model initialized successfully');
+            } catch (initError) {
+                console.error('❌ User initialization failed:', initError);
+            }
+
+            // FIXED: More robust body parsing with multiple fallbacks
+            let username, password;
+            
+            if (req.body && typeof req.body === 'object') {
+                username = req.body.username;
+                password = req.body.password;
+            } else {
+                console.error('❌ Invalid request body format:', typeof req.body, req.body);
+            }
+
+            console.log('📝 Extracted credentials:', { 
+                username: username ? `${username.substring(0, 3)}***` : 'undefined',
+                password: password ? '[PROVIDED]' : 'undefined'
+            });
 
             if (!username || !password) {
-                console.log('Missing credentials:', { username: !!username, password: !!password });
+                console.log('❌ Missing credentials');
                 
-                // FIXED: Check if flash is available before using it
                 if (req.flash && typeof req.flash === 'function') {
                     req.flash('error_msg', 'Username and password are required');
                 }
                 return res.redirect('/admin/login');
             }
 
-            console.log('Attempting login for username:', username);
+            // Clean and validate input
+            username = username.toString().trim();
+            password = password.toString();
 
-            // FIXED: Add error handling for User.authenticate
+            if (username.length === 0 || password.length === 0) {
+                console.log('❌ Empty credentials after trim');
+                
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('error_msg', 'Username and password cannot be empty');
+                }
+                return res.redirect('/admin/login');
+            }
+
+            console.log('🔍 Attempting authentication for username:', username);
+
+            // FIXED: Enhanced authentication with better error handling
             let user;
             try {
                 user = await User.authenticate(username, password);
-                console.log('Authentication result:', user ? 'success' : 'failed');
-            } catch (authError) {
-                console.error('Authentication error:', authError);
+                console.log('🔐 Authentication result:', user ? 'SUCCESS' : 'FAILED');
                 
-                if (req.flash && typeof req.flash === 'function') {
-                    req.flash('error_msg', 'Authentication service unavailable');
+                if (user) {
+                    console.log('👤 Authenticated user details:', {
+                        id: user.id,
+                        username: user.username,
+                        role: user.role,
+                        status: user.status
+                    });
                 }
-                return res.redirect('/admin/login');
+            } catch (authError) {
+                console.error('❌ Authentication error:', authError);
+                
+                // Try direct database query as fallback
+                try {
+                    console.log('🔄 Attempting direct database authentication...');
+                    const dbUser = await queryOne(`
+                        SELECT id, username, email, password, role, status 
+                        FROM users 
+                        WHERE (username = ? OR email = ?) AND status = 'active'
+                    `, [username, username]);
+                    
+                    if (dbUser) {
+                        console.log('👤 Found user in database:', {
+                            id: dbUser.id,
+                            username: dbUser.username,
+                            role: dbUser.role
+                        });
+                        
+                        // Try password verification
+                        const bcrypt = require('bcrypt');
+                        const isValidPassword = await bcrypt.compare(password, dbUser.password);
+                        
+                        if (isValidPassword) {
+                            user = new User({
+                                id: dbUser.id,
+                                username: dbUser.username,
+                                email: dbUser.email,
+                                role: dbUser.role,
+                                status: dbUser.status
+                            });
+                            console.log('✅ Direct authentication successful');
+                        } else {
+                            console.log('❌ Password verification failed');
+                        }
+                    } else {
+                        console.log('❌ User not found in database');
+                    }
+                } catch (dbError) {
+                    console.error('❌ Direct database authentication failed:', dbError);
+                }
+                
+                if (!user) {
+                    if (req.flash && typeof req.flash === 'function') {
+                        req.flash('error_msg', 'Authentication service temporarily unavailable');
+                    }
+                    return res.redirect('/admin/login');
+                }
             }
             
             if (!user) {
-                console.log('Invalid credentials for username:', username);
+                console.log('❌ Authentication failed for username:', username);
                 
-                if (req.flash && typeof req.flash === 'function') {
-                    req.flash('error_msg', 'Invalid username or password');
+                // Check if user exists at all
+                try {
+                    const existingUser = await queryOne(
+                        'SELECT username, role, status FROM users WHERE username = ? OR email = ?',
+                        [username, username]
+                    );
+                    
+                    if (existingUser) {
+                        console.log('🔍 User exists but authentication failed:', {
+                            username: existingUser.username,
+                            role: existingUser.role,
+                            status: existingUser.status
+                        });
+                        
+                        if (existingUser.status !== 'active') {
+                            if (req.flash && typeof req.flash === 'function') {
+                                req.flash('error_msg', 'Account is not active');
+                            }
+                        } else {
+                            if (req.flash && typeof req.flash === 'function') {
+                                req.flash('error_msg', 'Invalid password');
+                            }
+                        }
+                    } else {
+                        console.log('🔍 User does not exist:', username);
+                        if (req.flash && typeof req.flash === 'function') {
+                            req.flash('error_msg', 'Invalid username or password');
+                        }
+                    }
+                } catch (checkError) {
+                    console.error('❌ Error checking user existence:', checkError);
+                    if (req.flash && typeof req.flash === 'function') {
+                        req.flash('error_msg', 'Invalid username or password');
+                    }
                 }
+                
                 return res.redirect('/admin/login');
             }
 
+            // Check admin role
             if (user.role !== 'admin') {
-                console.log('Insufficient permissions for user:', username, 'role:', user.role);
+                console.log('❌ Insufficient permissions for user:', username, 'role:', user.role);
                 
                 if (req.flash && typeof req.flash === 'function') {
                     req.flash('error_msg', 'Insufficient permissions. Admin access required.');
@@ -1485,9 +1603,9 @@ static async updateSettings(req, res) {
                 return res.redirect('/admin/login');
             }
 
-            // FIXED: Ensure session exists before setting user
+            // FIXED: Enhanced session handling
             if (!req.session) {
-                console.error('Session not available');
+                console.error('❌ Session not available');
                 if (req.flash && typeof req.flash === 'function') {
                     req.flash('error_msg', 'Session service unavailable');
                 }
@@ -1499,20 +1617,43 @@ static async updateSettings(req, res) {
                 id: user.id,
                 username: user.username,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                status: user.status,
+                loginTime: new Date().toISOString()
             };
 
-            console.log('Login successful for user:', username);
-            
-            if (req.flash && typeof req.flash === 'function') {
-                req.flash('success_msg', 'Login successful');
-            }
+            // Force session save
+            req.session.save((saveError) => {
+                if (saveError) {
+                    console.error('❌ Session save error:', saveError);
+                    if (req.flash && typeof req.flash === 'function') {
+                        req.flash('error_msg', 'Login session could not be saved');
+                    }
+                    return res.redirect('/admin/login');
+                }
 
-            res.redirect('/admin');
+                console.log('✅ Login successful for user:', username);
+                console.log('💾 Session saved successfully');
+                
+                if (req.flash && typeof req.flash === 'function') {
+                    req.flash('success_msg', `Welcome back, ${user.username}!`);
+                }
+
+                // Update last login timestamp
+                try {
+                    query('UPDATE users SET updated_at = NOW() WHERE id = ?', [user.id])
+                        .catch(updateError => console.warn('⚠️ Failed to update last login:', updateError));
+                } catch (updateError) {
+                    console.warn('⚠️ Failed to update last login:', updateError);
+                }
+
+                res.redirect('/admin');
+            });
+
         } catch (error) {
-            console.error('Login error:', error);
+            console.error('❌ Login error:', error);
+            console.error('❌ Error stack:', error.stack);
             
-            // FIXED: Safe error handling
             if (req.flash && typeof req.flash === 'function') {
                 req.flash('error_msg', 'Login failed. Please try again.');
             }
@@ -1520,6 +1661,80 @@ static async updateSettings(req, res) {
             res.redirect('/admin/login');
         }
     }
-}
 
+static async resetAdminPassword(req, res) {
+        try {
+            console.log('🔄 Resetting admin password...');
+            
+            const bcrypt = require('bcrypt');
+            const newPassword = 'admin123';
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            await query(`
+                UPDATE users 
+                SET password = ?, updated_at = NOW() 
+                WHERE username = 'admin' AND role = 'admin'
+            `, [hashedPassword]);
+            
+            console.log('✅ Admin password reset to: admin123');
+            
+            res.json({
+                success: true,
+                message: 'Admin password reset to admin123'
+            });
+            
+        } catch (error) {
+            console.error('❌ Password reset error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to reset password',
+                error: error.message
+            });
+        }
+    }
+
+static async checkAdminStatus(req, res) {
+        try {
+            const adminUser = await queryOne(`
+                SELECT id, username, email, role, status, created_at, updated_at
+                FROM users 
+                WHERE username = 'admin' AND role = 'admin'
+            `);
+            
+            if (!adminUser) {
+                return res.json({
+                    success: false,
+                    message: 'Admin user not found',
+                    recommendation: 'Run User.initialize() to create default admin'
+                });
+            }
+            
+            res.json({
+                success: true,
+                admin: {
+                    id: adminUser.id,
+                    username: adminUser.username,
+                    email: adminUser.email,
+                    role: adminUser.role,
+                    status: adminUser.status,
+                    created_at: adminUser.created_at,
+                    updated_at: adminUser.updated_at
+                },
+                default_credentials: {
+                    username: 'admin',
+                    password: 'admin123'
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ Check admin status error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to check admin status',
+                error: error.message
+            });
+        }
+    }
+
+}
 module.exports = AdminController;
