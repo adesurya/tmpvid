@@ -1426,18 +1426,7 @@
         }
 
         function playVideo(videoElement, videoId) {
-            if (videoElement && videoElement.paused) {
-                const playPromise = videoElement.play();
-                if (playPromise !== undefined) {
-                    playPromise.then(() => {
-                        updatePlayIcon(videoId, true);
-                        recordView(videoId);
-                    }).catch(error => {
-                        console.log('❌ Auto-play prevented:', error);
-                        updatePlayIcon(videoId, false);
-                    });
-                }
-            }
+            playVideoWithS3Support(videoElement, videoId);
         }
 
         function preloadNextVideos(currentIndex) {
@@ -1526,62 +1515,47 @@
         }
 
         function createVideoElement(video, index) {
-            const videoItem = document.createElement('div');
-            videoItem.className = 'video-item';
-            videoItem.dataset.videoId = video.id;
-            videoItem.dataset.index = index;
-            videoItem.dataset.videoSlug = video.slug || video.id;
+            return createVideoElementWithS3Support(video, index);
+        }
+
+        // Enhanced initializeVideoPlayer untuk S3 support
+        function initializeVideoPlayerWithS3Support() {
+            const allItems = document.querySelectorAll('.video-item, .ad-container');
+            const videoItems = document.querySelectorAll('.video-item');
+            videos = Array.from(videoItems);
             
-            videoItem.innerHTML = `
-                <video 
-                    id="video-${video.id}"
-                    src="${video.video_url}"
-                    loop
-                    muted
-                    playsinline
-                    preload="metadata"
-                    class="main-video"
-                ></video>
-                
-                <div class="video-overlay"></div>
-                
-                <div class="video-controls">
-                    <button class="play-pause-btn" data-video-id="${video.id}" type="button">
-                        <i class="fas fa-play" id="play-icon-${video.id}"></i>
-                    </button>
-                </div>
-                
-                <div class="side-actions">
-                    <button class="action-btn like-btn" data-video-id="${video.id}" type="button">
-                        <i class="fas fa-heart"></i>
-                        <span class="like-count">${video.likes_count || 0}</span>
-                    </button>
-                    <button class="action-btn comment-btn" data-video-id="${video.id}" type="button">
-                        <i class="fas fa-comment"></i>
-                        <span class="comment-count">0</span>
-                    </button>
-                    <button class="action-btn share-btn" data-video-id="${video.id}" data-video-title="${video.title}" data-video-slug="${video.slug || video.id}" type="button">
-                        <i class="fas fa-share"></i>
-                        <span class="share-count">${video.shares_count || 0}</span>
-                    </button>
-                    <button class="action-btn sound-btn" data-video-id="${video.id}" type="button">
-                        <i class="fas fa-volume-mute" id="sound-icon-${video.id}"></i>
-                        <span>Sound</span>
-                    </button>
-                </div>
-                
-                <div class="video-info">
-                    <div class="video-title">${video.title}</div>
-                    ${video.description ? `<div class="video-description">${video.description}</div>` : ''}
-                    <div class="video-meta">
-                        <span><i class="fas fa-eye"></i> <span class="view-count">${video.views_count || 0}</span></span>
-                        ${video.category_name ? `<span><i class="fas fa-tag"></i> ${video.category_name}</span>` : ''}
-                        ${video.username ? `<span><i class="fas fa-user"></i> @${video.username}</span>` : ''}
-                    </div>
-                </div>
-            `;
+            console.log('🎬 Initialized video player with S3 support:', videos.length, 'videos and', allItems.length - videos.length, 'ads');
             
-            return videoItem;
+            // Ensure all items have proper indexing
+            Array.from(allItems).forEach((item, index) => {
+                item.dataset.index = index;
+                if (index === 0) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Enhanced preload for both local and S3 videos
+            videos.slice(0, 3).forEach(item => {
+                const video = item.querySelector('video');
+                if (video) {
+                    const storageType = video.dataset.storageType || 'local';
+                    console.log(`🎬 Preloading ${storageType} video:`, video.src);
+                    video.load();
+                }
+            });
+            
+            // Enhance existing video elements on page
+            videoItems.forEach(item => {
+                const video = item.querySelector('video');
+                if (video) {
+                    const videoData = {
+                        id: item.dataset.videoId,
+                        storage_type: video.dataset.storageType || 'local',
+                        storage_metadata: video.dataset.s3Metadata || null
+                    };
+                    enhanceVideoElementForS3(video, videoData);
+                }
+            });
         }
 
         function createAdElement(slotPosition, index, videoIndex) {
@@ -2716,5 +2690,403 @@
             initializeApp();
         }
     </script>
+
+    <style>
+/* TAMBAHAN CSS UNTUK S3 SUPPORT - DITAMBAHKAN KE CSS YANG SUDAH ADA */
+
+/* S3 Video Loading Indicator */
+.video-item.s3-loading {
+    position: relative;
+}
+
+.video-item.s3-loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #fe2c55;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 100;
+}
+
+/* S3 Error State */
+.video-item.s3-error {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.video-item.s3-error::after {
+    content: 'Video temporarily unavailable';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    z-index: 100;
+}
+
+/* Storage type indicator (optional) */
+.video-storage-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    z-index: 10;
+    display: none; /* Hidden by default, can be enabled via JS */
+}
+
+.video-storage-indicator.s3 {
+    background: rgba(52, 152, 219, 0.8);
+}
+
+.video-storage-indicator.local {
+    background: rgba(46, 204, 113, 0.8);
+}
+</style>
+
+<script>
+// === S3 VIDEO SUPPORT FUNCTIONS ===
+// Fungsi-fungsi ini DITAMBAHKAN ke JavaScript yang sudah ada
+
+// Enhanced video loading with S3 support
+function enhanceVideoElementForS3(videoElement, videoData) {
+    if (!videoElement || !videoData) return;
+    
+    const videoItem = videoElement.closest('.video-item');
+    if (!videoItem) return;
+    
+    // Add storage type indicator if needed (optional)
+    if (videoData.storage_type === 's3' && process.env.NODE_ENV === 'development') {
+        const indicator = document.createElement('div');
+        indicator.className = `video-storage-indicator ${videoData.storage_type}`;
+        indicator.textContent = videoData.storage_type.toUpperCase();
+        videoItem.appendChild(indicator);
+    }
+    
+    // Enhanced error handling for S3 videos
+    videoElement.addEventListener('error', function(e) {
+        console.error(`❌ Video load error for ${videoData.storage_type} video:`, e);
+        
+        if (videoData.storage_type === 's3') {
+            handleS3VideoError(videoElement, videoData);
+        } else {
+            handleLocalVideoError(videoElement, videoData);
+        }
+    });
+    
+    // Enhanced loading state for S3
+    videoElement.addEventListener('loadstart', function() {
+        if (videoData.storage_type === 's3') {
+            videoItem.classList.add('s3-loading');
+        }
+    });
+    
+    videoElement.addEventListener('canplay', function() {
+        videoItem.classList.remove('s3-loading', 's3-error');
+    });
+    
+    // Handle S3 specific metadata
+    if (videoData.storage_metadata) {
+        try {
+            const metadata = typeof videoData.storage_metadata === 'string' 
+                ? JSON.parse(videoData.storage_metadata) 
+                : videoData.storage_metadata;
+            
+            // Store metadata for potential use
+            videoElement.dataset.s3Metadata = JSON.stringify(metadata);
+            
+            // Handle presigned URLs if they expire
+            if (metadata.s3_key && videoData.storage_type === 's3') {
+                setupS3VideoRefresh(videoElement, metadata.s3_key, videoData.id);
+            }
+        } catch (error) {
+            console.warn('Failed to parse video storage metadata:', error);
+        }
+    }
+}
+
+// Handle S3 video errors with fallback options
+async function handleS3VideoError(videoElement, videoData) {
+    const videoItem = videoElement.closest('.video-item');
+    console.log(`🔄 Handling S3 video error for video ${videoData.id}`);
+    
+    videoItem.classList.remove('s3-loading');
+    videoItem.classList.add('s3-error');
+    
+    // Try to get a fresh presigned URL
+    try {
+        const response = await fetch(`/api/videos/${videoData.id}/streaming-url`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.streaming_url) {
+                console.log(`🔄 Refreshing S3 URL for video ${videoData.id}`);
+                videoElement.src = data.streaming_url;
+                videoElement.load();
+                
+                videoItem.classList.remove('s3-error');
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to refresh S3 URL:', error);
+    }
+    
+    // If refresh fails, show error state
+    setTimeout(() => {
+        if (videoItem.classList.contains('s3-error')) {
+            showToast('Video temporarily unavailable', 'warning', 3000);
+        }
+    }, 2000);
+}
+
+// Handle local video errors
+function handleLocalVideoError(videoElement, videoData) {
+    const videoItem = videoElement.closest('.video-item');
+    console.log(`❌ Local video error for video ${videoData.id}`);
+    
+    videoItem.classList.add('s3-error'); // Reuse same error styling
+    
+    setTimeout(() => {
+        showToast('Video failed to load', 'error', 3000);
+    }, 1000);
+}
+
+// Setup S3 video URL refresh (for presigned URLs that may expire)
+function setupS3VideoRefresh(videoElement, s3Key, videoId) {
+    // Check if we need to refresh the URL every 30 minutes
+    setInterval(async () => {
+        try {
+            const response = await fetch(`/api/videos/${videoId}/streaming-url`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.streaming_url && data.streaming_url !== videoElement.src) {
+                    // Refresh URL in background without interrupting playback
+                    const currentTime = videoElement.currentTime;
+                    const isPlaying = !videoElement.paused;
+                    
+                    videoElement.src = data.streaming_url;
+                    videoElement.currentTime = currentTime;
+                    
+                    if (isPlaying) {
+                        videoElement.play().catch(console.error);
+                    }
+                    
+                    console.log(`🔄 Background URL refresh for video ${videoId}`);
+                }
+            }
+        } catch (error) {
+            console.warn('Background URL refresh failed:', error);
+        }
+    }, 30 * 60 * 1000); // 30 minutes
+}
+
+// Enhanced createVideoElement function with S3 support
+function createVideoElementWithS3Support(video, index) {
+    const videoItem = document.createElement('div');
+    videoItem.className = 'video-item';
+    videoItem.dataset.videoId = video.id;
+    videoItem.dataset.index = index;
+    videoItem.dataset.videoSlug = video.slug || video.id;
+    videoItem.dataset.storageType = video.storage_type || 'local';
+    
+    videoItem.innerHTML = `
+        <video 
+            id="video-${video.id}"
+            src="${video.video_url}"
+            loop
+            muted
+            playsinline
+            preload="metadata"
+            class="main-video"
+            data-storage-type="${video.storage_type || 'local'}"
+        ></video>
+        
+        <div class="video-overlay"></div>
+        
+        <div class="video-controls">
+            <button class="play-pause-btn" data-video-id="${video.id}" type="button">
+                <i class="fas fa-play" id="play-icon-${video.id}"></i>
+            </button>
+        </div>
+        
+        <div class="side-actions">
+            <button class="action-btn like-btn" data-video-id="${video.id}" type="button">
+                <i class="fas fa-heart"></i>
+                <span class="like-count">${video.likes_count || 0}</span>
+            </button>
+            <button class="action-btn comment-btn" data-video-id="${video.id}" type="button">
+                <i class="fas fa-comment"></i>
+                <span class="comment-count">0</span>
+            </button>
+            <button class="action-btn share-btn" data-video-id="${video.id}" data-video-title="${video.title}" data-video-slug="${video.slug || video.id}" type="button">
+                <i class="fas fa-share"></i>
+                <span class="share-count">${video.shares_count || 0}</span>
+            </button>
+            <button class="action-btn sound-btn" data-video-id="${video.id}" type="button">
+                <i class="fas fa-volume-mute" id="sound-icon-${video.id}"></i>
+                <span>Sound</span>
+            </button>
+        </div>
+        
+        <div class="video-info">
+            <div class="video-title">${video.title}</div>
+            ${video.description ? `<div class="video-description">${video.description}</div>` : ''}
+            <div class="video-meta">
+                <span><i class="fas fa-eye"></i> <span class="view-count">${video.views_count || 0}</span></span>
+                ${video.category_name ? `<span><i class="fas fa-tag"></i> ${video.category_name}</span>` : ''}
+                ${video.username ? `<span><i class="fas fa-user"></i> @${video.username}</span>` : ''}
+            </div>
+        </div>
+    `;
+    
+    // Enhance the video element for S3 support
+    const videoElement = videoItem.querySelector('video');
+    if (videoElement) {
+        enhanceVideoElementForS3(videoElement, video);
+    }
+    
+    return videoItem;
+}
+
+
+
+// UPDATE: Replace the existing initializeVideoPlayer function call
+// Ganti panggilan initializeVideoPlayer() dengan yang ini di initializeApp():
+function updateInitializeApp() {
+    // UPDATE: Ganti initializeVideoPlayer(); dengan:
+    initializeVideoPlayerWithS3Support();
+    // Sisanya tetap sama...
+}
+
+// Enhanced video loading with network retry for S3
+async function loadVideoWithRetry(videoElement, maxRetries = 2) {
+    const videoData = {
+        id: videoElement.closest('.video-item')?.dataset.videoId,
+        storage_type: videoElement.dataset.storageType || 'local'
+    };
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`🎬 Loading video attempt ${attempt}/${maxRetries} (${videoData.storage_type})`);
+            
+            videoElement.load();
+            
+            // Wait for video to be ready
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Video load timeout'));
+                }, 10000); // 10 second timeout
+                
+                videoElement.addEventListener('canplay', () => {
+                    clearTimeout(timeout);
+                    resolve();
+                }, { once: true });
+                
+                videoElement.addEventListener('error', () => {
+                    clearTimeout(timeout);
+                    reject(new Error('Video load error'));
+                }, { once: true });
+            });
+            
+            console.log(`✅ Video loaded successfully on attempt ${attempt}`);
+            return true;
+            
+        } catch (error) {
+            console.warn(`❌ Video load attempt ${attempt} failed:`, error.message);
+            
+            if (attempt === maxRetries) {
+                if (videoData.storage_type === 's3') {
+                    handleS3VideoError(videoElement, videoData);
+                } else {
+                    handleLocalVideoError(videoElement, videoData);
+                }
+                return false;
+            }
+            
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+    }
+}
+
+// Enhanced playVideo function with S3 retry logic
+async function playVideoWithS3Support(videoElement, videoId) {
+    if (!videoElement) return;
+    
+    const videoData = {
+        id: videoId,
+        storage_type: videoElement.dataset.storageType || 'local'
+    };
+    
+    try {
+        if (videoElement.paused) {
+            // Try to play, with retry for S3 videos
+            let playPromise;
+            
+            if (videoData.storage_type === 's3' && videoElement.readyState < 2) {
+                // For S3 videos that aren't ready, try loading first
+                const loadSuccess = await loadVideoWithRetry(videoElement);
+                if (!loadSuccess) {
+                    updatePlayIcon(videoId, false);
+                    return;
+                }
+            }
+            
+            playPromise = videoElement.play();
+            
+            if (playPromise !== undefined) {
+                await playPromise;
+                updatePlayIcon(videoId, true);
+                recordView(videoId);
+                console.log(`✅ Playing ${videoData.storage_type} video:`, videoId);
+            }
+        }
+    } catch (error) {
+        console.error(`❌ Play failed for ${videoData.storage_type} video:`, error);
+        updatePlayIcon(videoId, false);
+        
+        // Try one more time for S3 videos
+        if (videoData.storage_type === 's3') {
+            setTimeout(async () => {
+                try {
+                    await videoElement.play();
+                    updatePlayIcon(videoId, true);
+                    recordView(videoId);
+                } catch (retryError) {
+                    console.error('❌ Retry play also failed:', retryError);
+                }
+            }, 2000);
+        }
+    }
+}
+
+
+
+console.log('✅ S3 video support functions loaded');
+</script>
+
 </body>
 </html>

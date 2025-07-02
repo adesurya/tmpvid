@@ -741,7 +741,12 @@ class VideoController {
                 Joi.string().allow('', null)
             ).allow(null),
             status: Joi.string().valid('draft', 'published', 'private').default('published'),
-            video_quality: Joi.string().valid('360p', '720p', '1080p', '4K').default('720p')
+            video_quality: Joi.string().valid('360p', '720p', '1080p', '4K').default('720p'),
+            // NEW: Storage preference option
+            storage_preference: Joi.string().valid('auto', 'local', 's3').default('auto'),
+            // NEW: Video processing options
+            generate_thumbnail: Joi.boolean().default(true),
+            optimize_video: Joi.boolean().default(false)
         });
         
         const { error, value } = enhancedVideoSchema.validate(req.body);
@@ -786,21 +791,60 @@ class VideoController {
             });
         }
         
-        console.log('All validations passed, creating video record...');
+        console.log('All validations passed, uploading video...');
         
-        // Prepare video data
+        // NEW: Enhanced upload with storage preference
+        const uploadOptions = {
+            generateThumbnail: value.generate_thumbnail,
+            optimizeVideo: value.optimize_video,
+            forceLocal: value.storage_preference === 'local'
+        };
+        
+        // Create file object for storage service
+        const fileForUpload = {
+            buffer: req.file.buffer,
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size
+        };
+        
+        // Upload video using enhanced storage service
+        const uploadResult = await storageService.uploadVideo(fileForUpload, uploadOptions);
+        
+        if (!uploadResult.success) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to upload video: ' + uploadResult.error
+            });
+        }
+        
+        console.log('Video uploaded successfully:', uploadResult);
+        
+        // Prepare video data with enhanced metadata
         const videoData = {
             title: value.title.trim(),
             description: value.description ? value.description.trim() : null,
             category_id: value.category_id ? (typeof value.category_id === 'string' ? parseInt(value.category_id) : value.category_id) : null,
             series_id: value.series_id ? (typeof value.series_id === 'string' ? parseInt(value.series_id) : value.series_id) : null,
-            video_url: `/uploads/videos/${req.file.filename}`,
+            video_url: uploadResult.url,
+            thumbnail: uploadResult.thumbnail || null,
             duration: 0, // Will be filled later with FFmpeg if available
-            file_size: req.file.size,
+            file_size: uploadResult.size || req.file.size,
             video_quality: value.video_quality || '720p',
-            storage_type: 'local',
+            storage_type: uploadResult.storage_type, // 's3' or 'local'
             user_id: userId,
-            status: value.status || 'published'
+            status: value.status || 'published',
+            // NEW: Enhanced metadata
+            storage_metadata: JSON.stringify({
+                storage_type: uploadResult.storage_type,
+                upload_timestamp: new Date().toISOString(),
+                original_filename: req.file.originalname,
+                s3_key: uploadResult.key || null,
+                s3_bucket: uploadResult.bucket || null,
+                s3_etag: uploadResult.etag || null,
+                content_type: req.file.mimetype,
+                upload_options: uploadOptions
+            })
         };
         
         // Convert empty strings to null for database
@@ -817,6 +861,16 @@ class VideoController {
         const video = await Video.create(videoData);
         
         if (!video) {
+            // If database save fails and we uploaded to S3, clean up
+            if (uploadResult.storage_type === 's3' && uploadResult.key) {
+                try {
+                    await storageService.deleteFile(uploadResult.url, 's3');
+                    console.log('Cleaned up S3 file after database failure');
+                } catch (cleanupError) {
+                    console.error('Failed to cleanup S3 file:', cleanupError);
+                }
+            }
+            
             return res.status(500).json({
                 success: false,
                 message: 'Failed to create video record'
@@ -825,44 +879,79 @@ class VideoController {
         
         console.log('Video created successfully:', video.id);
         
-        // Try to generate thumbnail and get video metadata (non-blocking)
+        // Enhanced background processing for video metadata
         try {
+            // Only try video processing if we have the video service
             const videoService = require('../services/videoService');
-            const videoPath = `./public/uploads/videos/${req.file.filename}`;
             
-            // Generate thumbnail in background
-            videoService.generateThumbnail(videoPath).then(thumbnailResult => {
-                if (thumbnailResult.success) {
-                    Video.update(video.id, { thumbnail: thumbnailResult.url }).catch(console.error);
-                    console.log('Thumbnail generated:', thumbnailResult.url);
+            // For S3 videos, we need different handling
+            if (uploadResult.storage_type === 's3') {
+                // Generate presigned URL for video processing
+                const { generatePresignedUrl } = require('../config/aws');
+                const presignedResult = await generatePresignedUrl(uploadResult.key, 1800); // 30 minutes
+                
+                if (presignedResult.success) {
+                    // Process video metadata using presigned URL
+                    videoService.getVideoMetadataFromUrl(presignedResult.url).then(metadata => {
+                        if (metadata.duration > 0) {
+                            Video.update(video.id, { duration: metadata.duration }).catch(console.error);
+                            console.log('Video duration updated from S3:', metadata.duration);
+                        }
+                    }).catch(error => {
+                        console.log('Failed to get S3 video metadata:', error.message);
+                    });
                 }
-            }).catch(console.error);
-            
-            // Get video metadata in background
-            videoService.getVideoMetadata(videoPath).then(metadata => {
-                if (metadata.duration > 0) {
-                    Video.update(video.id, { duration: metadata.duration }).catch(console.error);
-                    console.log('Video duration updated:', metadata.duration);
-                }
-            }).catch(console.error);
+            } else {
+                // Local video processing (existing logic)
+                const videoPath = `./public/uploads/videos/${path.basename(uploadResult.url)}`;
+                
+                // Get video metadata in background
+                videoService.getVideoMetadata(videoPath).then(metadata => {
+                    if (metadata.duration > 0) {
+                        Video.update(video.id, { duration: metadata.duration }).catch(console.error);
+                        console.log('Video duration updated:', metadata.duration);
+                    }
+                }).catch(console.error);
+            }
             
         } catch (serviceError) {
             console.log('Video service not available:', serviceError.message);
-            // Continue without thumbnail/metadata
+            // Continue without metadata processing
         }
         
-        // Return success response
-        res.json({
+        // Enhanced response with storage information
+        const response = {
             success: true,
-            data: video,
-            message: 'Video uploaded successfully'
-        });
+            data: {
+                ...video,
+                storage_info: {
+                    storage_type: uploadResult.storage_type,
+                    url: uploadResult.url,
+                    thumbnail: uploadResult.thumbnail,
+                    size: uploadResult.size,
+                    key: uploadResult.key || null
+                }
+            },
+            message: `Video uploaded successfully to ${uploadResult.storage_type === 's3' ? 'AWS S3' : 'local storage'}`,
+            upload_summary: {
+                storage_used: uploadResult.storage_type,
+                file_size: storageService.formatFileSize(uploadResult.size),
+                thumbnail_generated: !!uploadResult.thumbnail,
+                processing_status: 'queued'
+            }
+        };
+        
+        res.json(response);
         
     } catch (error) {
         console.error('Upload video error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to upload video: ' + error.message
+            message: 'Failed to upload video: ' + error.message,
+            error_details: process.env.NODE_ENV === 'development' ? {
+                stack: error.stack,
+                message: error.message
+            } : undefined
         });
     }
 }

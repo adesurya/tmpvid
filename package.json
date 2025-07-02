@@ -13,7 +13,7 @@
     "init:ads": "node -e \"require('./src/models/Ad').initializeTable().then(() => console.log('✅ Ads system initialized')).catch(console.error)\""
   },
   "dependencies": {
-    "aws-sdk": "^2.1479.0",
+    "aws-sdk": "^2.1692.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.0",

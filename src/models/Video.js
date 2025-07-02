@@ -40,64 +40,68 @@ static async initializeTables() {
 
 // Create new video
 static async create(videoData) {
-        try {
-            // Generate slug
-            const slug = await this.generateUniqueSlug(videoData.title);
-            
-            const sql = `
-                INSERT INTO videos (
-                    title, description, slug, video_url, thumbnail, duration,
-                    file_size, video_quality, storage_type, category_id, series_id,
-                    user_id, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            
-            const params = [
-                videoData.title,
-                videoData.description || null,
-                slug,
-                videoData.video_url,
-                videoData.thumbnail || null,
-                videoData.duration || 0,
-                videoData.file_size || 0,
-                videoData.video_quality || '720p',
-                videoData.storage_type || 'local',
-                videoData.category_id || null,
-                videoData.series_id || null,
-                videoData.user_id,
-                videoData.status || 'draft'
-            ];
-            
-            const result = await query(sql, params);
-            return await this.findById(result.insertId);
-        } catch (error) {
-            console.error('Video creation error:', error);
-            throw error;
-        }
+    try {
+        // Enhanced slug generation
+        const slug = await this.generateUniqueSlug(videoData.title);
+        
+        const sql = `
+            INSERT INTO videos (
+                title, description, slug, video_url, thumbnail, duration,
+                file_size, video_quality, storage_type, storage_metadata, 
+                category_id, series_id, user_id, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const params = [
+            videoData.title,
+            videoData.description || null,
+            slug,
+            videoData.video_url,
+            videoData.thumbnail || null,
+            videoData.duration || 0,
+            videoData.file_size || 0,
+            videoData.video_quality || '720p',
+            videoData.storage_type || 'local',
+            videoData.storage_metadata || null, // JSON field for S3 metadata
+            videoData.category_id || null,
+            videoData.series_id || null,
+            videoData.user_id,
+            videoData.status || 'draft'
+        ];
+        
+        const result = await query(sql, params);
+        const createdVideo = await this.findById(result.insertId);
+        
+        console.log(`✅ Video created: ${createdVideo.id} (${createdVideo.storage_type})`);
+        return createdVideo;
+    } catch (error) {
+        console.error('Enhanced video creation error:', error);
+        throw error;
     }
+}
 
 // Find video by ID
 static async findById(id) {
-        try {
-            const sql = `
-                SELECT v.*, 
-                       c.name as category_name,
-                       s.title as series_title,
-                       u.username
-                FROM videos v
-                LEFT JOIN categories c ON v.category_id = c.id
-                LEFT JOIN series s ON v.series_id = s.id
-                LEFT JOIN users u ON v.user_id = u.id
-                WHERE v.id = ?
-            `;
-            
-            const video = await queryOne(sql, [id]);
-            return video ? new Video(video) : null;
-        } catch (error) {
-            console.error('Find video by ID error:', error);
-            throw error;
-        }
+    try {
+        const sql = `
+            SELECT v.*, 
+                   c.name as category_name,
+                   s.title as series_title,
+                   u.username
+            FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN series s ON v.series_id = s.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE v.id = ?
+        `;
+        
+        const video = await queryOne(sql, [id]);
+        return video ? new Video(video) : null;
+    } catch (error) {
+        console.error('Find video by ID error:', error);
+        throw error;
     }
+}
 
 // Find video by slug
 static async findBySlug(slug) {
@@ -175,6 +179,75 @@ static async getRandomVideos(limit = 10, excludeId = null) {
             console.error('Fallback query also failed:', fallbackError);
             return this.getDemoVideos(limit);
         }
+    }
+}
+
+static async getStreamingInfo(videoId) {
+    try {
+        const video = await this.findById(videoId);
+        if (!video) {
+            return null;
+        }
+        
+        const streamingInfo = {
+            video_id: video.id,
+            title: video.title,
+            duration: video.duration,
+            file_size: video.file_size,
+            video_quality: video.video_quality,
+            storage_type: video.storage_type,
+            streaming_urls: {
+                direct: video.video_url
+            },
+            thumbnail: video.thumbnail,
+            metadata: {}
+        };
+        
+        // Add storage-specific information
+        if (video.storage_type === 's3') {
+            const { extractKeyFromUrl } = require('../config/aws');
+            const s3Key = extractKeyFromUrl(video.video_url);
+            
+            if (s3Key) {
+                streamingInfo.s3_key = s3Key;
+                
+                // Generate different expiry URLs for different use cases
+                const { generatePresignedUrl } = require('../config/aws');
+                
+                try {
+                    const shortTermUrl = await generatePresignedUrl(s3Key, 3600); // 1 hour
+                    const longTermUrl = await generatePresignedUrl(s3Key, 86400); // 24 hours
+                    
+                    if (shortTermUrl.success && longTermUrl.success) {
+                        streamingInfo.streaming_urls = {
+                            direct: video.video_url, // Public URL if available
+                            short_term: shortTermUrl.url, // 1 hour access
+                            long_term: longTermUrl.url, // 24 hour access
+                            expires_short: 3600,
+                            expires_long: 86400
+                        };
+                    }
+                } catch (urlError) {
+                    console.warn('Failed to generate streaming URLs:', urlError);
+                }
+            }
+        }
+        
+        // Add metadata if available
+        if (video.storage_metadata) {
+            try {
+                streamingInfo.metadata = typeof video.storage_metadata === 'string' 
+                    ? JSON.parse(video.storage_metadata) 
+                    : video.storage_metadata;
+            } catch (parseError) {
+                console.warn('Failed to parse storage metadata:', parseError);
+            }
+        }
+        
+        return streamingInfo;
+    } catch (error) {
+        console.error('Get video streaming info error:', error);
+        throw error;
     }
 }
 
@@ -726,15 +799,47 @@ static async update(id, updateData) {
 
 // Delete video
 static async delete(id) {
-        try {
-            const sql = 'DELETE FROM videos WHERE id = ?';
-            const result = await query(sql, [id]);
-            return result.affectedRows > 0;
-        } catch (error) {
-            console.error('Delete video error:', error);
-            throw error;
+    try {
+        // Get video info before deletion for cleanup
+        const video = await this.findById(id);
+        if (!video) {
+            return false;
         }
+        
+        // Delete from database first
+        const sql = 'DELETE FROM videos WHERE id = ?';
+        const result = await query(sql, [id]);
+        
+        if (result.affectedRows > 0) {
+            // Clean up storage files after successful database deletion
+            const storageService = require('../services/storageService');
+            
+            try {
+                // Delete main video file
+                if (video.video_url) {
+                    await storageService.deleteVideo(video.video_url, video.storage_type);
+                    console.log(`Deleted video file: ${video.video_url}`);
+                }
+                
+                // Delete thumbnail if exists
+                if (video.thumbnail) {
+                    await storageService.deleteFile(video.thumbnail, video.storage_type);
+                    console.log(`Deleted thumbnail: ${video.thumbnail}`);
+                }
+            } catch (cleanupError) {
+                console.error('File cleanup error after video deletion:', cleanupError);
+                // Don't fail the deletion if cleanup fails
+            }
+            
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Delete video error:', error);
+        throw error;
     }
+}
 
 static async recordView(viewData) {
     try {
@@ -893,6 +998,343 @@ static async toggleLike(videoId, userId) {
         });
     } catch (error) {
         console.error('Toggle like error:', error);
+        throw error;
+    }
+}
+
+// NEW: Get S3 metadata for video
+static async getS3Metadata(videoId) {
+    try {
+        const video = await this.findById(videoId);
+        if (!video || video.storage_type !== 's3') {
+            return null;
+        }
+        
+        let metadata = {};
+        if (video.storage_metadata) {
+            try {
+                metadata = JSON.parse(video.storage_metadata);
+            } catch (parseError) {
+                console.warn('Failed to parse storage metadata:', parseError);
+            }
+        }
+        
+        return {
+            storage_type: video.storage_type,
+            video_url: video.video_url,
+            thumbnail: video.thumbnail,
+            s3_key: metadata.s3_key || null,
+            s3_bucket: metadata.s3_bucket || null,
+            s3_etag: metadata.s3_etag || null,
+            upload_timestamp: metadata.upload_timestamp || video.created_at,
+            original_filename: metadata.original_filename || null,
+            content_type: metadata.content_type || null
+        };
+    } catch (error) {
+        console.error('Get S3 metadata error:', error);
+        return null;
+    }
+}
+
+// NEW: Update storage metadata
+static async updateStorageMetadata(videoId, metadata) {
+    try {
+        const updateData = {
+            storage_metadata: JSON.stringify({
+                ...metadata,
+                updated_at: new Date().toISOString()
+            })
+        };
+        
+        return await this.update(videoId, updateData);
+    } catch (error) {
+        console.error('Update storage metadata error:', error);
+        throw error;
+    }
+}
+
+// NEW: Migrate video from local to S3
+static async migrateVideoToS3(videoId) {
+    try {
+        const video = await this.findById(videoId);
+        if (!video) {
+            throw new Error('Video not found');
+        }
+        
+        if (video.storage_type === 's3') {
+            return {
+                success: true,
+                message: 'Video already in S3',
+                video: video
+            };
+        }
+        
+        if (video.storage_type !== 'local') {
+            throw new Error('Can only migrate from local storage');
+        }
+        
+        const storageService = require('../services/storageService');
+        const path = require('path');
+        const fs = require('fs').promises;
+        
+        // Get local file path
+        const localPath = path.join(__dirname, '../../public', video.video_url);
+        
+        // Check if local file exists
+        try {
+            await fs.access(localPath);
+        } catch (error) {
+            throw new Error('Local video file not found');
+        }
+        
+        // Read local file
+        const fileBuffer = await fs.readFile(localPath);
+        const fileStats = await fs.stat(localPath);
+        
+        // Create file object for S3 upload
+        const fileForUpload = {
+            buffer: fileBuffer,
+            originalname: path.basename(localPath),
+            mimetype: storageService.getMimeType(path.basename(localPath)),
+            size: fileStats.size
+        };
+        
+        // Upload to S3
+        const uploadResult = await storageService.uploadVideo(fileForUpload, {
+            forceLocal: false,
+            generateThumbnail: false // Don't regenerate if already exists
+        });
+        
+        if (!uploadResult.success) {
+            throw new Error('S3 upload failed: ' + uploadResult.error);
+        }
+        
+        // Update video record
+        const updateData = {
+            video_url: uploadResult.url,
+            storage_type: 's3',
+            storage_metadata: JSON.stringify({
+                storage_type: 's3',
+                s3_key: uploadResult.key,
+                s3_bucket: uploadResult.bucket,
+                s3_etag: uploadResult.etag,
+                migration_timestamp: new Date().toISOString(),
+                original_local_path: video.video_url,
+                migrated_from: 'local'
+            })
+        };
+        
+        // Update thumbnail if it was also uploaded to S3
+        if (uploadResult.thumbnail) {
+            updateData.thumbnail = uploadResult.thumbnail;
+        }
+        
+        const updatedVideo = await this.update(videoId, updateData);
+        
+        // Optionally delete local file after successful migration
+        // (You might want to keep it as backup initially)
+        /*
+        try {
+            await fs.unlink(localPath);
+            console.log(`Local file deleted: ${localPath}`);
+        } catch (deleteError) {
+            console.warn(`Failed to delete local file: ${deleteError.message}`);
+        }
+        */
+        
+        return {
+            success: true,
+            message: 'Video migrated to S3 successfully',
+            video: updatedVideo,
+            migration_info: {
+                old_url: video.video_url,
+                new_url: uploadResult.url,
+                s3_key: uploadResult.key,
+                file_size: uploadResult.size
+            }
+        };
+        
+    } catch (error) {
+        console.error('Migrate video to S3 error:', error);
+        throw error;
+    }
+}
+
+// NEW: Get videos by storage type
+static async getVideosByStorageType(storageType, options = {}) {
+    try {
+        const { page = 1, limit = 20 } = options;
+        
+        let sql = `
+            SELECT v.*, 
+                   c.name as category_name,
+                   u.username
+            FROM videos v
+            LEFT JOIN categories c ON v.category_id = c.id
+            LEFT JOIN users u ON v.user_id = u.id
+            WHERE v.storage_type = ?
+            ORDER BY v.created_at DESC
+        `;
+        
+        const params = [storageType];
+        
+        // Pagination
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        sql += ` LIMIT ? OFFSET ?`;
+        params.push(parseInt(limit), offset);
+        
+        // Count query
+        const countSql = `SELECT COUNT(*) as total FROM videos WHERE storage_type = ?`;
+        
+        const [videos, countResult] = await Promise.all([
+            query(sql, params),
+            query(countSql, [storageType])
+        ]);
+        
+        const total = countResult[0]?.total || 0;
+        const totalPages = Math.ceil(total / parseInt(limit));
+        
+        return {
+            data: videos.map(video => new Video(video)),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: total,
+                totalPages: totalPages,
+                hasNext: parseInt(page) < totalPages,
+                hasPrev: parseInt(page) > 1
+            }
+        };
+    } catch (error) {
+        console.error('Get videos by storage type error:', error);
+        throw error;
+    }
+}
+
+// NEW: Get storage statistics
+static async getStorageStatistics() {
+    try {
+        const sql = `
+            SELECT 
+                storage_type,
+                COUNT(*) as video_count,
+                COALESCE(SUM(file_size), 0) as total_size,
+                COALESCE(AVG(file_size), 0) as avg_size,
+                MIN(created_at) as earliest_video,
+                MAX(created_at) as latest_video
+            FROM videos 
+            GROUP BY storage_type
+        `;
+        
+        const results = await query(sql);
+        
+        const statistics = {
+            by_storage_type: results,
+            totals: {
+                total_videos: results.reduce((sum, row) => sum + row.video_count, 0),
+                total_size: results.reduce((sum, row) => sum + parseInt(row.total_size), 0)
+            }
+        };
+        
+        return statistics;
+    } catch (error) {
+        console.error('Get storage statistics error:', error);
+        throw error;
+    }
+}
+
+// NEW: Validate S3 video accessibility
+static async validateS3Videos() {
+    try {
+        const s3Videos = await this.getVideosByStorageType('s3', { limit: 1000 });
+        const { extractKeyFromUrl, getFileInfo } = require('../config/aws');
+        
+        const results = {
+            total_checked: s3Videos.data.length,
+            accessible: 0,
+            inaccessible: 0,
+            errors: []
+        };
+        
+        for (const video of s3Videos.data) {
+            try {
+                const s3Key = extractKeyFromUrl(video.video_url);
+                if (!s3Key) {
+                    results.errors.push({
+                        video_id: video.id,
+                        error: 'Could not extract S3 key from URL',
+                        url: video.video_url
+                    });
+                    results.inaccessible++;
+                    continue;
+                }
+                
+                const fileInfo = await getFileInfo(s3Key);
+                if (fileInfo.success && fileInfo.exists) {
+                    results.accessible++;
+                } else {
+                    results.errors.push({
+                        video_id: video.id,
+                        error: 'File not found in S3',
+                        s3_key: s3Key
+                    });
+                    results.inaccessible++;
+                }
+            } catch (error) {
+                results.errors.push({
+                    video_id: video.id,
+                    error: error.message
+                });
+                results.inaccessible++;
+            }
+        }
+        
+        return results;
+    } catch (error) {
+        console.error('Validate S3 videos error:', error);
+        throw error;
+    }
+}
+
+static async delete(id) {
+    try {
+        // Get video info before deletion for cleanup
+        const video = await this.findById(id);
+        if (!video) {
+            return false;
+        }
+        
+        // Delete from database first
+        const sql = 'DELETE FROM videos WHERE id = ?';
+        const result = await query(sql, [id]);
+        
+        if (result.affectedRows > 0) {
+            // Clean up storage files after successful database deletion
+            const storageService = require('../services/storageService');
+            
+            try {
+                // Delete main video file
+                if (video.video_url) {
+                    await storageService.deleteVideo(video.video_url, video.storage_type);
+                    console.log(`Deleted video file: ${video.video_url}`);
+                }
+                
+                // Delete thumbnail if exists
+                if (video.thumbnail) {
+                    await storageService.deleteFile(video.thumbnail, video.storage_type);
+                    console.log(`Deleted thumbnail: ${video.thumbnail}`);
+                }
+            } catch (cleanupError) {
+                console.error('File cleanup error after video deletion:', cleanupError);
+                // Don't fail the deletion if cleanup fails
+            }
+            
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Delete video error:', error);
         throw error;
     }
 }

@@ -872,6 +872,41 @@
                         </select>
                     </div>
                     
+                    <!-- NEW: Enhanced Storage Options -->
+                    <div class="form-group">
+                        <label class="form-label">Storage Preference</label>
+                        <select name="storage_preference" id="storageSelect" class="form-control">
+                            <option value="auto">Auto (Use best available)</option>
+                            <option value="s3">AWS S3 Cloud Storage</option>
+                            <option value="local">Local Server Storage</option>
+                        </select>
+                        <small class="help-text" id="storageHelp">
+                            <i class="fas fa-cloud"></i>
+                            <span id="storageHelpText">Automatically selects the best storage option</span>
+                        </small>
+                    </div>
+                    
+                    <!-- NEW: Processing Options -->
+                    <div class="form-group">
+                        <label class="form-label">Processing Options</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="generate_thumbnail" checked>
+                                <span class="checkmark"></span>
+                                Generate Thumbnail Automatically
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="optimize_video">
+                                <span class="checkmark"></span>
+                                Optimize Video for Web Streaming
+                            </label>
+                        </div>
+                        <small class="help-text">
+                            <i class="fas fa-cog"></i>
+                            Additional processing options for better performance
+                        </small>
+                    </div>
+                    
                     <div class="form-group">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-control">
@@ -883,18 +918,44 @@
                     
                     <div class="form-group">
                         <label class="form-label">Video File<span class="required">*</span></label>
-                        <input type="file" name="video" accept="video/*" class="form-control" required>
+                        <input type="file" name="video" accept="video/*" class="form-control" required id="videoFileInput">
                         <small class="help-text">
                             <i class="fas fa-info-circle"></i>
                             Supported formats: MP4, AVI, MOV, WMV, FLV (Max: 500MB)
                         </small>
+                        <div id="filePreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    
+                    <!-- NEW: Storage Status Display -->
+                    <div id="storageStatus" class="storage-status" style="display: none;">
+                        <div class="status-header">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Storage Information</span>
+                        </div>
+                        <div class="status-content">
+                            <div class="status-item">
+                                <span class="label">Storage System:</span>
+                                <span class="value" id="storageSystemStatus">Checking...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">Upload Destination:</span>
+                                <span class="value" id="uploadDestination">Determining...</span>
+                            </div>
+                        </div>
                     </div>
                     
                     <div id="uploadProgress" class="progress-container">
+                        <div class="progress-header">
+                            <span id="uploadStage">Preparing upload...</span>
+                            <span id="uploadSpeed"></span>
+                        </div>
                         <div class="progress-bar-container">
                             <div id="progressBar" class="progress-bar"></div>
                         </div>
-                        <p id="progressText" class="progress-text">Uploading...</p>
+                        <div class="progress-details">
+                            <span id="progressText" class="progress-text">Ready to upload</span>
+                            <span id="uploadEta" class="upload-eta"></span>
+                        </div>
                     </div>
                 </div>
                 
@@ -924,6 +985,116 @@
             const mobileToggle = document.getElementById('mobileToggle');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
+            const storageSelect = document.getElementById('storageSelect');
+            const storageHelp = document.getElementById('storageHelpText');
+            const storageStatus = document.getElementById('storageStatus');
+            const videoFileInput = document.getElementById('videoFileInput');
+
+            const storageDescriptions = {
+                auto: 'Automatically selects the best storage option available',
+                s3: 'Upload to AWS S3 cloud storage for global accessibility and CDN delivery',
+                local: 'Store on local server - faster upload but limited scalability'
+            };
+            
+            // Update help text when storage option changes
+            if (storageSelect) {
+                storageSelect.addEventListener('change', function() {
+                    const selected = this.value;
+                    storageHelp.textContent = storageDescriptions[selected] || storageDescriptions.auto;
+                    
+                    // Update icon based on selection
+                    const icon = storageHelp.querySelector('i');
+                    if (icon) {
+                        icon.className = selected === 's3' ? 'fas fa-cloud' : 
+                                    selected === 'local' ? 'fas fa-server' : 
+                                    'fas fa-magic';
+                    }
+                    
+                    checkStorageStatus();
+                });
+            }
+
+            if (videoFileInput) {
+                videoFileInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        displayFilePreview(file);
+                        checkStorageStatus();
+                    }
+                });
+            }
+
+            async function checkStorageStatus() {
+                try {
+                    const response = await fetch('/api/admin/storage/status');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        updateStorageStatus(data.data);
+                    }
+                } catch (error) {
+                    console.warn('Failed to check storage status:', error);
+                }
+            }
+
+            function updateStorageStatus(statusData) {
+                const storageStatus = document.getElementById('storageStatus');
+                const systemStatus = document.getElementById('storageSystemStatus');
+                const uploadDestination = document.getElementById('uploadDestination');
+                
+                if (storageStatus && systemStatus && uploadDestination) {
+                    const preference = document.getElementById('storageSelect').value;
+                    
+                    // Update system status
+                    if (statusData.s3_enabled) {
+                        systemStatus.innerHTML = '<i class="fas fa-check-circle text-success"></i> S3 & Local Available';
+                    } else {
+                        systemStatus.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> Local Only';
+                    }
+                    
+                    // Update destination
+                    let destination = 'Local Server';
+                    if (preference === 's3' && statusData.s3_enabled) {
+                        destination = `AWS S3 (${statusData.s3_bucket || 'Default Bucket'})`;
+                    } else if (preference === 'auto' && statusData.s3_enabled) {
+                        destination = 'AWS S3 (Auto-selected)';
+                    }
+                    
+                    uploadDestination.textContent = destination;
+                    storageStatus.style.display = 'block';
+                }
+            }
+
+            function displayFilePreview(file) {
+                const preview = document.getElementById('filePreview');
+                if (preview) {
+                    const fileSize = formatFileSize(file.size);
+                    const fileType = file.type;
+                    
+                    preview.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-icon">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <div class="file-details">
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-meta">
+                                    <span class="file-size">${fileSize}</span>
+                                    <span class="file-type">${fileType}</span>
+                                </div>
+                            </div>
+                            <div class="file-status">
+                                <i class="fas fa-check-circle text-success"></i>
+                                <span>Ready</span>
+                            </div>
+                        </div>
+                    `;
+                    preview.style.display = 'block';
+                }
+            }
+            
+            // Load storage status on page load
+            setTimeout(checkStorageStatus, 1000);
 
             function toggleSidebar() {
                 sidebar.classList.toggle('mobile-visible');
@@ -1063,7 +1234,7 @@
             const fileInput = document.querySelector('input[name="video"]');
             const file = fileInput.files[0];
             
-            // Validation
+            // Existing validation code...
             if (!file) {
                 showNotification('Please select a video file', 'error');
                 return;
@@ -1087,33 +1258,107 @@
                 return;
             }
             
-            // Show progress
+            // Show enhanced progress
             document.getElementById('uploadProgress').style.display = 'block';
             document.getElementById('submitUploadBtn').disabled = true;
             document.getElementById('cancelUploadBtn').disabled = true;
             
+            // Get storage preference
+            const storagePreference = formData.get('storage_preference') || 'auto';
+            const uploadStage = document.getElementById('uploadStage');
+            const uploadSpeed = document.getElementById('uploadSpeed');
+            const uploadEta = document.getElementById('uploadEta');
+            
             try {
                 currentXHR = new XMLHttpRequest();
                 
-                // Progress tracking
+                let uploadStartTime = Date.now();
+                let lastLoaded = 0;
+                let lastTime = uploadStartTime;
+                
+                // Enhanced progress tracking with speed calculation
                 currentXHR.upload.addEventListener('progress', function(e) {
                     if (e.lengthComputable) {
+                        const now = Date.now();
+                        const timeDiff = (now - lastTime) / 1000; // seconds
+                        const loadedDiff = e.loaded - lastLoaded;
+                        
+                        if (timeDiff > 0.5) { // Update every 500ms
+                            const speed = loadedDiff / timeDiff; // bytes per second
+                            const remaining = e.total - e.loaded;
+                            const eta = remaining / speed; // seconds
+                            
+                            // Update speed display
+                            if (uploadSpeed) {
+                                uploadSpeed.textContent = `${formatFileSize(speed)}/s`;
+                            }
+                            
+                            // Update ETA
+                            if (uploadEta && eta > 0 && eta < Infinity) {
+                                uploadEta.textContent = `ETA: ${formatTime(eta)}`;
+                            }
+                            
+                            lastLoaded = e.loaded;
+                            lastTime = now;
+                        }
+                        
                         const percentComplete = (e.loaded / e.total) * 100;
                         document.getElementById('progressBar').style.width = percentComplete + '%';
+                        
+                        // Update stage based on progress
+                        let stage = 'Uploading';
+                        if (percentComplete < 25) {
+                            stage = storagePreference === 's3' ? 'Uploading to AWS S3' : 'Uploading to server';
+                        } else if (percentComplete < 75) {
+                            stage = 'Processing upload';
+                        } else if (percentComplete < 95) {
+                            stage = 'Finalizing';
+                        } else {
+                            stage = 'Completing upload';
+                        }
+                        
+                        uploadStage.textContent = stage;
                         document.getElementById('progressText').textContent = 
-                            'Uploading... ' + Math.round(percentComplete) + '% (' + formatFileSize(e.loaded) + ' / ' + formatFileSize(e.total) + ')';
+                            `${Math.round(percentComplete)}% (${formatFileSize(e.loaded)} / ${formatFileSize(e.total)})`;
                     }
                 });
                 
-                // Success handler
+                // Success handler with enhanced feedback
                 currentXHR.addEventListener('load', function() {
                     if (currentXHR.status === 200) {
                         try {
                             const result = JSON.parse(currentXHR.responseText);
                             if (result.success) {
-                                showNotification('Video uploaded successfully!', 'success');
+                                // Show enhanced success message
+                                const storageInfo = result.data.storage_info || {};
+                                const storageType = storageInfo.storage_type || 'unknown';
+                                
+                                let successMessage = 'Video uploaded successfully!';
+                                if (storageType === 's3') {
+                                    successMessage += ' Your video is now available globally via AWS S3.';
+                                } else if (storageType === 'local') {
+                                    successMessage += ' Your video has been stored on the server.';
+                                }
+                                
+                                if (result.upload_summary) {
+                                    successMessage += ` File size: ${result.upload_summary.file_size}.`;
+                                    if (result.upload_summary.thumbnail_generated) {
+                                        successMessage += ' Thumbnail generated.';
+                                    }
+                                }
+                                
+                                showNotification(successMessage, 'success');
                                 hideUploadModal();
                                 loadVideos();
+                                
+                                // Log upload analytics
+                                console.log('Upload completed:', {
+                                    storage_type: storageType,
+                                    file_size: storageInfo.size,
+                                    has_thumbnail: !!storageInfo.thumbnail,
+                                    upload_time: (Date.now() - uploadStartTime) / 1000
+                                });
+                                
                             } else {
                                 showNotification('Upload failed: ' + (result.message || 'Unknown error'), 'error');
                             }
@@ -1121,7 +1366,15 @@
                             showNotification('Upload completed but response was invalid', 'warning');
                         }
                     } else {
-                        showNotification('Upload failed: HTTP ' + currentXHR.status, 'error');
+                        let errorMessage = `Upload failed: HTTP ${currentXHR.status}`;
+                        if (currentXHR.status === 413) {
+                            errorMessage = 'File too large. Please choose a smaller file.';
+                        } else if (currentXHR.status === 415) {
+                            errorMessage = 'Unsupported file type. Please upload a valid video file.';
+                        } else if (currentXHR.status >= 500) {
+                            errorMessage = 'Server error. Please try again later.';
+                        }
+                        showNotification(errorMessage, 'error');
                     }
                     
                     // Re-enable buttons
@@ -1130,31 +1383,62 @@
                     document.getElementById('uploadProgress').style.display = 'none';
                 });
                 
-                // Error handler
+                // Enhanced error handler
                 currentXHR.addEventListener('error', function() {
-                    showNotification('Upload failed: Network error. Please check your connection.', 'error');
-                    document.getElementById('submitUploadBtn').disabled = false;
-                    document.getElementById('cancelUploadBtn').disabled = false;
-                    document.getElementById('uploadProgress').style.display = 'none';
+                    let errorMessage = 'Upload failed: Network error.';
+                    
+                    // Try to determine the cause
+                    if (!navigator.onLine) {
+                        errorMessage = 'Upload failed: No internet connection.';
+                    } else {
+                        errorMessage = 'Upload failed: Please check your connection and try again.';
+                    }
+                    
+                    showNotification(errorMessage, 'error');
+                    resetUploadState();
                 });
                 
                 // Abort handler
                 currentXHR.addEventListener('abort', function() {
                     showNotification('Upload cancelled', 'info');
-                    document.getElementById('submitUploadBtn').disabled = false;
-                    document.getElementById('cancelUploadBtn').disabled = false;
-                    document.getElementById('uploadProgress').style.display = 'none';
+                    resetUploadState();
                 });
                 
-                // Send request
+                // Start upload
+                uploadStage.textContent = 'Initializing upload...';
                 currentXHR.open('POST', '/api/admin/videos/upload');
                 currentXHR.send(formData);
                 
             } catch (error) {
                 showNotification('Upload failed: ' + error.message, 'error');
-                document.getElementById('submitUploadBtn').disabled = false;
-                document.getElementById('cancelUploadBtn').disabled = false;
-                document.getElementById('uploadProgress').style.display = 'none';
+                resetUploadState();
+            }
+        }
+
+        function resetUploadState() {
+            document.getElementById('submitUploadBtn').disabled = false;
+            document.getElementById('cancelUploadBtn').disabled = false;
+            document.getElementById('uploadProgress').style.display = 'none';
+            
+            // Reset progress elements
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('uploadStage').textContent = 'Ready to upload';
+            document.getElementById('uploadSpeed').textContent = '';
+            document.getElementById('uploadEta').textContent = '';
+            document.getElementById('progressText').textContent = 'Ready to upload';
+        }
+
+        function formatTime(seconds) {
+            if (seconds < 60) {
+                return `${Math.round(seconds)}s`;
+            } else if (seconds < 3600) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.round(seconds % 60);
+                return `${minutes}m ${remainingSeconds}s`;
+            } else {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                return `${hours}h ${minutes}m`;
             }
         }
 
@@ -1266,6 +1550,31 @@
             }, 5000);
         }
 
+        function showEnhancedNotification(message, type, storageInfo = null) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            let content = `<i class="fas fa-${getNotificationIcon(type)}"></i> ${message}`;
+            
+            if (storageInfo && storageInfo.storage_type) {
+                const storageIcon = storageInfo.storage_type === 's3' ? 'fa-cloud' : 'fa-server';
+                content += `<br><small><i class="fas ${storageIcon}"></i> Stored in ${storageInfo.storage_type === 's3' ? 'AWS S3' : 'Local Storage'}</small>`;
+            }
+            
+            notification.innerHTML = content;
+            document.body.appendChild(notification);
+            
+            // Remove after 5 seconds
+            setTimeout(function() {
+                notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(function() {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
         function getNotificationIcon(type) {
             switch(type) {
                 case 'success': return 'check-circle';
@@ -1302,5 +1611,211 @@
             showNotification('Edit functionality coming soon!', 'info');
         }
     </script>
+
+    <style>
+    .checkbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    position: relative;
+    padding-left: 30px;
+    line-height: 1.4;
+}
+
+.checkbox-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 20px;
+    width: 20px;
+    background-color: #eee;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.checkbox-label:hover input ~ .checkmark {
+    border-color: #667eea;
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+.checkbox-label input:checked ~ .checkmark {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-label input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.storage-status {
+    background: rgba(102, 126, 234, 0.05);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.status-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.status-item .label {
+    color: #666;
+}
+
+.status-item .value {
+    font-weight: 500;
+    color: #333;
+}
+
+.file-preview {
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid #eee;
+    border-radius: 8px;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.file-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+}
+
+.file-details {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.file-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #666;
+}
+
+.file-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.progress-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.upload-eta {
+    color: #666;
+    font-style: italic;
+}
+
+.text-success {
+    color: #27ae60 !important;
+}
+
+.text-warning {
+    color: #f39c12 !important;
+}
+
+@media (max-width: 768px) {
+    .file-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .file-meta {
+        justify-content: center;
+    }
+    
+    .progress-header,
+    .progress-details {
+        flex-direction: column;
+        gap: 5px;
+        text-align: center;
+    }
+}
+</style>
 </body>
 </html>
